@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лабораторная работа №1</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<table id="main-layout" border="1" width="100%">
+    <tr>
+        <td colspan="2" id="header">
+            <b>Вохрамеев Глеб Дмитриевич | Группа: P3218 | Вариант: 22627</b>
+        </td>
+    </tr>
+    <tr>
+        <td id="canvas-cell" align="center" width="50%">
+            <canvas id="graph" width="300" height="300"></canvas>
+        </td>
+        <td id="form-cell" width="50%">
+            <form id="point-form">
+                <p><b> Да начнется морской бой </b></p>
+                <p><b>Координата X:</b></p>
+                <p>
+                    <input type="checkbox" name="x" value="-2">-2
+                    <input type="checkbox" name="x" value="-1.5">-1.5
+                    <input type="checkbox" name="x" value="-1">-1
+                    <input type="checkbox" name="x" value="-0.5">-0.5
+                    <input type="checkbox" name="x" value="0">0
+                    <input type="checkbox" name="x" value="0.5">0.5
+                    <input type="checkbox" name="x" value="1">1
+                    <input type="checkbox" name="x" value="1.5">1.5
+                    <input type="checkbox" name="x" value="2">2
+                </p>
+
+                <p><b>Координата Y (-5 ... 3):</b></p>
+                <p>
+                    <input type="text" id="y-input" name="y" placeholder="Введи число от -5 до 3">
+                </p>
+
+                <p><b>Размер оси координат R (1 ... 4):</b></p>
+                <p>
+                    <input type="text" id="r-input" name="r" placeholder="Введи число от 1 до 4">
+                </p>
+
+                <p>
+                    <input type="submit" id="submit-btn" value="Проверить">
+                </p>
+            </form>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" id="results-cell">
+            <table id="results-table" border="1" width="100%">
+                <thead>
+                <tr>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>R</th>
+                    <th>Результат</th>
+                    <th>Текущее время</th>
+                </tr>
+                </thead>
+                <tbody id="results-body">
+                </tbody>
+            </table>
+        </td>
+    </tr>
+</table>
+<p align="center">
+    <button type="button" id="clear-btn">Очистить таблицу</button>
+</p>
+<script src="js/main.js"></script>
+</body>
+</html>
