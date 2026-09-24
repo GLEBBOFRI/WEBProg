@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Лабораторная работа №1</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="toast-container"></div>
+<table id="main-layout" border="1">
+    <tr>
+        <td colspan="2" id="header">
+            <b>Вохрамеев Глеб Дмитриевич | Группа: P3218 | Вариант: 22627</b>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" id="easter-egg-cell">
+            <input type="text" id="top-left-input" placeholder="Интересно, для чего же это поле......?">
+        </td>
+    </tr>
+    <tr>
+        <td id="canvas-cell" align="center">
+            <canvas id="graph" width="300" height="300"></canvas>
+        </td>
+        <td id="form-cell">
+            <form id="point-form">
+                <p><b> Да начнется морской бой </b></p>
+                <p><b>Координата X:</b></p>
+                <p>
+                    <input type="checkbox" name="x" value="-2">-2
+                    <input type="checkbox" name="x" value="-1.5">-1.5
+                    <input type="checkbox" name="x" value="-1">-1
+                    <input type="checkbox" name="x" value="-0.5">-0.5
+                    <input type="checkbox" name="x" value="0">0
+                    <input type="checkbox" name="x" value="0.5">0.5
+                    <input type="checkbox" name="x" value="1">1
+                    <input type="checkbox" name="x" value="1.5">1.5
+                    <input type="checkbox" name="x" value="2">2
+                </p>
+
+                <p><b>Координата Y (-5 ... 3):</b></p>
+                <p>
+                    <input type="text" id="y-input" name="y" placeholder="Введи число от -5 до 3">
+                </p>
+
+                <p><b>Размер оси координат R (1 ... 4):</b></p>
+                <p>
+                    <input type="text" id="r-input" name="r" placeholder="Введи число от 1 до 4">
+                </p>
+
+                <p>
+                    <input type="submit" id="submit-btn" value="Проверить">
+                </p>
+            </form>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" id="results-cell">
+            <table id="results-table" border="1">
+                <thead>
+                <tr>
+                    <th>X</th>
+                    <th>Y</th>
+                    <th>R</th>
+                    <th>Результат</th>
+                    <th>Текущее время</th>
+                </tr>
+                </thead>
+                <tbody id="results-body">
+                </tbody>
+            </table>
+        </td>
+    </tr>
+    <tr>
+        <td colspan="2" id="clr">
+            <div class="button-group">
+                <button type="button" id="clear-btn" class="action-btn">Очистить таблицу</button>
+                <button type="button" id="toggle-invalid-btn" class="action-btn">Скрыть невалидные</button>
+            </div>
+        </td>
+    </tr>
+</table>
+
+<script src="js/main.js"></script>
+</body>
+</html>
