@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Лабораторная работа №2</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+
+<body>
+    <div id="toast-container"></div>
+    <table id="main-layout" border="1">
+        <tr>
+            <td colspan="2" id="header">
+                <b>Вохрамеев Глеб Дмитриевич | Группа: P3218 | Вариант: 89721</b>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" id="easter-egg-cell">
+                <input type="text" id="top-left-input" placeholder="Интересно, для чего же это поле......?">
+            </td>
+        </tr>
+        <tr>
+            <td id="canvas-cell" align="center">
+                <canvas id="graph" width="300" height="300"></canvas>
+            </td>
+            <td id="form-cell">
+                <form id="point-form">
+                    <p><b> Да начнется морской бой </b></p>
+                    <p><b>Координата X:</b></p>
+                    <div id="x-buttons-group" class="btn-group">
+                        <button type="button" class="x-btn" data-value="-4">-4</button>
+                        <button type="button" class="x-btn" data-value="-3">-3</button>
+                        <button type="button" class="x-btn" data-value="-2">-2</button>
+                        <button type="button" class="x-btn" data-value="-1">-1</button>
+                        <button type="button" class="x-btn" data-value="0">0</button>
+                        <button type="button" class="x-btn" data-value="1">1</button>
+                        <button type="button" class="x-btn" data-value="2">2</button>
+                        <button type="button" class="x-btn" data-value="3">3</button>
+                        <button type="button" class="x-btn" data-value="4">4</button>
+                    </div>
+                    <input type="hidden" id="x-input" name="x" value="">
+
+                    <p><b>Координата Y (-3 ... 3):</b></p>
+                    <p>
+                        <input type="text" id="y-input" name="y" placeholder="Введи число от -3 до 3">
+                    </p>
+
+                    <p><b>Размер оси координат R:</b></p>
+                    <p>
+                        <select id="r-select" name="r">
+                            <option value="" disabled selected>Выберите R</option>
+                            <option value="1">1</option>
+                            <option value="1.5">1.5</option>
+                            <option value="2">2</option>
+                            <option value="2.5">2.5</option>
+                            <option value="3">3</option>
+                        </select>
+                    </p>
+
+                    <p>
+                        <input type="submit" id="submit-btn" value="Проверить" disabled>
+                    </p>
+                </form>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" id="results-cell">
+                <table id="results-table" border="1">
+                    <thead>
+                        <tr>
+                            <th>X</th>
+                            <th>Y</th>
+                            <th>R</th>
+                            <th>Результат</th>
+                            <th>Текущее время</th>
+                            <th>Время работы</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-body">
+                    </tbody>
+                </table>
+            </td>
+        </tr>
+        <tr>
+            <td colspan="2" id="clr">
+                <div class="button-group">
+                    <button type="button" id="clear-btn" class="action-btn">Очистить таблицу</button>
+                    <button type="button" id="toggle-invalid-btn" class="action-btn">Скрыть невалидные</button>
+                </div>
+            </td>
+        </tr>
+    </table>
+
+    <script src="js/main.js"></script>
+</body>
+
+</html>

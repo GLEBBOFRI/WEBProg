@@ -1,0 +1,6 @@
+.DS_Store
+.idea/
+*.iml
+target/
+weblab2/server/target/
+weblab2/server/out/
