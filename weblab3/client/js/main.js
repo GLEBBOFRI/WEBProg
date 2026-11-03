@@ -471,17 +471,17 @@ async function zagruzitIstoriyuSServera() {
 
 function getEndpoint() {
     // 1. При открытии через веб-сервер факультета (se.ifmo.ru/~s465457)
-    // запросы идут на порт 25000 через поднятый SSH-туннель
+    // запросы идут на порт 24000 через поднятый SSH-туннель
     if (window.location.hostname === 'se.ifmo.ru' || window.location.hostname.endsWith('.se.ifmo.ru')) {
-        return 'http://localhost:25000/fcgi-bin/server.jar';
+        return 'http://localhost:24000/fcgi-bin/server.jar';
     }
 
     // 2. При локальном тестировании в WebStorm, Live Server или через file://
-    if (window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '25000')) {
-        return 'http://localhost:25000/fcgi-bin/server.jar';
+    if (window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '24000')) {
+        return 'http://localhost:24000/fcgi-bin/server.jar';
     }
 
-    // 3. При прямом обращении через веб-сервер Apache (localhost:25000)
+    // 3. При прямом обращении через веб-сервер Apache (localhost:24000)
     return '/fcgi-bin/server.jar';
 }
 
