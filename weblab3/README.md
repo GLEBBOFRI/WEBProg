@@ -81,9 +81,47 @@ weblab3/
    ```
 3. Откройте в браузере:
    ```
-   http://localhost:8080/weblab3/
-   ```
-   или напрямую контроллер:
-   ```
    http://localhost:8080/weblab3/controller
    ```
+
+---
+
+## 5. Автоматическое развертывание на сервере Helios (`deploy-helios.sh`)
+
+Скрипт `deploy-helios.sh` полностью автоматизирует процесс сборки и развертывания на сервере Helios в соответствии со всеми требованиями лабораторной работы:
+- Запуск WildFly в **standalone-конфигурации**;
+- Настройка портов в соответствии с переданным **portbase** (`-Djboss.socket.binding.port-offset=...`);
+- Доступ к **HTTP listener открыт для всех IP** (`-b 0.0.0.0 -bmanagement 0.0.0.0`);
+- Автоматическая установка WildFly в домашнюю директорию `~/wildfly` на Helios (если еще не установлен);
+- Деплой `weblab3.war` в `~/wildfly/standalone/deployments/`;
+- Генерация вспомогательных скриптов управления `~/wildfly/{start,stop,restart,status,logs}-wildfly.sh`.
+
+### Использование:
+```bash
+./deploy-helios.sh [HELIOS_USER] [PORTBASE] [SSH_PORT]
+```
+По умолчанию:
+- `HELIOS_USER` = `s465457`
+- `PORTBASE` = `25000` (HTTP порт = 25000, Management порт = 26910, Offset = 16920)
+- `SSH_PORT` = `2222`
+
+Пример вызова:
+```bash
+./deploy-helios.sh s465457 25000 2222
+```
+
+### Управление на сервере Helios:
+- **Запуск:** `~/wildfly/start-wildfly.sh`
+- **Остановка:** `~/wildfly/stop-wildfly.sh`
+- **Перезапуск:** `~/wildfly/restart-wildfly.sh`
+- **Статус:** `~/wildfly/status-wildfly.sh`
+- **Логи в реальном времени:** `~/wildfly/logs-wildfly.sh`
+
+### Доступ к веб-приложению:
+- Прямой доступ: `http://helios.cs.ifmo.ru:25000/weblab3/controller`
+- Через SSH-туннель:
+  ```bash
+  ssh -p 2222 -L 25000:localhost:25000 s465457@helios.cs.ifmo.ru -N
+  ```
+  После чего открыть в браузере: `http://localhost:25000/weblab3/controller`
+
