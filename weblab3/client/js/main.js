@@ -1,514 +1,757 @@
-/**
- * Клиентский сценарий лабораторной работы №3 для развертывания в public_html (se.ifmo.ru/~s465457)
- * Реализует:
- *  - Интерактивный Canvas-график с новыми фигурами варианта:
- *      1. I четверть: прямоугольник R x R/2 (0 <= x <= R, 0 <= y <= R/2)
- *      2. II четверть: треугольник (-R/2, 0) -> (0, R) (y <= 2x + R, x >= -R/2)
- *      3. IV четверть: сектор круга радиуса R (x^2 + y^2 <= R^2)
- *  - Пунктирное ограничение допустимой зоны: X in [-4, 4], Y in (-5, 3);
- *  - Примагничивание курсора к допустимой области и проекции;
- *  - Одиночный выбор чекбоксов X;
- *  - Строгую валидацию полей формы;
- *  - Сохранение истории в localStorage и мгновенный отклик;
- *  - AJAX отправку на бэкенд с автоматическим фолбеком.
- */
+const canvas = document.getElementById('graph');
+const ctx = canvas.getContext('2d');
 
-document.addEventListener('DOMContentLoaded', function () {
-    const canvas = document.getElementById('graph-canvas');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
+var historyOfTochki = [];
+var myishX = null;
+var myishY = null;
 
-    const CENTER_X = canvas.width / 2; // 180
-    const CENTER_Y = canvas.height / 2; // 180
-    const SCALE = 28; // 1 единица = 28 пикселей
+var danceInterval = null;
+var danceR = 0;
+var origTableStat = [];
+var hideInvalidDotes = true; // По умолчанию скрываем невалидные точки при перезагрузке
 
-    let mouseX = null;
-    let mouseY = null;
-    let pointsHistory = [];
+const codeword = 'абобус';
+const SCALE = 30; // 1 единица = 30 пикселей (при ширине 300px диапазон от -4 до 4 составляет [-120px, +120px])
 
-    // Загрузка истории из localStorage
-    loadHistoryFromStorage();
+// Склеивает все джсон строки и прогоняет по 32-битному хэш-алгоритму DJB2
+function protectothack(dataObj) {
+    if (!dataObj || typeof dataObj !== 'object') return '';
+    var str = JSON.stringify({
+        x: dataObj.x,
+        y: dataObj.y,
+        r: dataObj.r,
+        hit: dataObj.hit,
+        time: dataObj.time,
+        execTime: dataObj.execTime
+    }) + codeword;
+    var hash = 0;
+    for (var i = 0; i < str.length; i++) {
+        var char = str.charCodeAt(i);
+        hash = (hash << 5) - hash + char;
+        hash |= 0;
+    }
+    return hash.toString();
+}
 
-    // 1. Поведение чекбоксов X: одиночный выбор (radio-like)
-    const xCheckboxes = document.querySelectorAll('input[type="checkbox"][name="x"]');
-    xCheckboxes.forEach(cb => {
-        cb.addEventListener('change', function () {
-            if (this.checked) {
-                xCheckboxes.forEach(other => {
-                    if (other !== this) other.checked = false;
-                });
+// Парсит в число и заменяет запятую на точку
+function toStrAndDZ(val) {
+    if (val === null || val === undefined) return NaN;
+    var str = String(val).trim().replace(',', '.');
+    return str === '' ? NaN : Number(str);
+}
+
+// Создает на 3 сек тост с ошибкой
+function pokazatOshibku(text) {
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = text;
+
+    container.appendChild(toast);
+
+    setTimeout(function() {
+        if (toast.parentNode === container) {
+            container.removeChild(toast);
+        }
+    }, 3000);
+}
+
+// Валидация R: Select {'1', '2', '3', '4', '5'}
+function isValidR(rVal) {
+    var rNum = toStrAndDZ(rVal);
+    var validR = [1, 2, 3, 4, 5];
+    return !isNaN(rNum) && validR.indexOf(rNum) !== -1;
+}
+
+// Валидация Y: Text (-5 ... 3), строгий интервал не включая границы
+function isValidY(yVal) {
+    var yNum = toStrAndDZ(yVal);
+    return !isNaN(yNum) && yNum > -5 && yNum < 3;
+}
+
+// Валидация X: Checkbox {'-4','-3','-2','-1','0','1','2','3','4'}
+function isValidX(xVal) {
+    var xNum = toStrAndDZ(xVal);
+    var validX = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
+    return !isNaN(xNum) && validX.indexOf(xNum) !== -1;
+}
+
+// Перевод координат (x, y) в пиксели холста
+function xyToPx(x, y) {
+    var px = 150 + x * SCALE;
+    var py = 150 - y * SCALE;
+    return { x: px, y: py };
+}
+
+// Перевод пикселей холста в координаты (x, y)
+function pxToXY(px, py) {
+    var rawX = (px - 150) / SCALE;
+    var rawY = (150 - py) / SCALE;
+    return {
+        x: Math.round(rawX * 1000) / 1000,
+        y: Math.round(rawY * 1000) / 1000
+    };
+}
+
+// Пасхалка с танцами таблиц
+function startDance() {
+    if (danceInterval !== null) return;
+
+    var DI = document.getElementsByTagName("table");
+    var DIL = DI.length;
+
+    origTableStat = [];
+    for (var k = 0; k < DIL; k++) {
+        origTableStat.push({
+            position: DI[k].style.position,
+            left: DI[k].style.left,
+            top: DI[k].style.top
+        });
+    }
+
+    danceR = 0;
+    var x1 = 0.1, y1 = 0.05, x2 = 0.25, y2 = 0.24, x3 = 1.6, y3 = 0.24, x4 = 300, y4 = 200, x5 = 300, y5 = 200;
+
+    danceInterval = setInterval(function() {
+        for (var i = 0; i < DIL; i++) {
+            var DIS = DI[i].style;
+            DIS.position = 'absolute';
+            DIS.left = (Math.sin(danceR * x1 + i * x2 + x3) * x4 + x5) + "px";
+            DIS.top = (Math.cos(danceR * y1 + i * y2 + y3) * y4 + y5) + "px";
+        }
+        danceR++;
+    }, 20);
+}
+
+function stopDance() {
+    if (danceInterval !== null) {
+        clearInterval(danceInterval);
+        danceInterval = null;
+
+        var DI = document.getElementsByTagName("table");
+        for (var i = 0; i < DI.length; i++) {
+            if (origTableStat[i]) {
+                DI[i].style.position = origTableStat[i].position;
+                DI[i].style.left = origTableStat[i].left;
+                DI[i].style.top = origTableStat[i].top;
             }
-        });
-    });
-
-    // 2. Обработка изменения R: перерисовка графика
-    const rSelect = document.getElementById('r-select');
-    rSelect.addEventListener('change', function () {
-        redrawCanvas();
-    });
-
-    // 3. Обработка движения мыши по Canvas (примагничивание и прицел)
-    canvas.addEventListener('mousemove', function (e) {
-        const pos = getCanvasRelativeCoords(canvas, e);
-        mouseX = pos.x;
-        mouseY = pos.y;
-        redrawCanvas();
-    });
-
-    canvas.addEventListener('mouseleave', function () {
-        mouseX = null;
-        mouseY = null;
-        redrawCanvas();
-    });
-
-    // 4. Клик по Canvas
-    canvas.addEventListener('click', function (e) {
-        const rVal = parseFloat(rSelect.value);
-        if (isNaN(rVal) || rVal <= 0) {
-            showToast('Невозможно определить координаты: сначала выберите радиус R!', 'error');
-            return;
         }
+    }
+}
 
-        const pos = getCanvasRelativeCoords(canvas, e);
-        const rawCoords = pxToMath(pos.x, pos.y);
-        const clamped = clampCoords(rawCoords.x, rawCoords.y);
+// Проверка попадания на клиенте (для валидации и отображения)
+function proverkaPopadaniya(x, y, r) {
+    // 1 четверть: прямоугольник [0, R] x [0, R/2]
+    if (x >= 0 && y >= 0) {
+        return (x <= r) && (y <= (r / 2));
+    }
+    // 2 четверть: треугольник (-R/2, 0), (0, 0), (0, R)
+    if (x <= 0 && y >= 0) {
+        return (x >= -r / 2) && (y <= (2 * x + r));
+    }
+    // 4 четверть: сектор круга радиуса R
+    if (x >= 0 && y <= 0) {
+        return (x * x + y * y) <= (r * r);
+    }
+    return false;
+}
 
-        processPointCheck(clamped.x, clamped.y, rVal, true);
-    });
+// Отрисовка графика варианта 3 лабы
+function narisovatGrafik(rVal) {
+    ctx.clearRect(0, 0, 300, 300);
 
-    // 5. Отправка формы через AJAX
-    const form = document.getElementById('point-form');
-    form.addEventListener('submit', function (e) {
-        e.preventDefault();
+    var hasValidR = isValidR(rVal);
+    var rNum = hasValidR ? toStrAndDZ(rVal) : 2; // Если R не выбран, используем 2 для разметки осей
 
-        // Валидация X
-        const selectedX = getSelectedX();
-        if (selectedX === null) {
-            showToast('Выберите одно значение для координаты X!', 'error');
-            return;
-        }
+    if (hasValidR) {
+        ctx.fillStyle = '#3399ff';
 
-        // Валидация Y
-        const yInput = document.getElementById('y-input');
-        const yStr = yInput.value.trim().replace(',', '.');
-        if (yStr === '') {
-            showToast('Введите значение координаты Y!', 'error');
-            yInput.classList.add('input-error');
-            return;
-        }
+        var rPx = rNum * SCALE;
+        var halfRPx = (rNum / 2) * SCALE;
 
-        const yVal = parseFloat(yStr);
-        if (isNaN(yVal)) {
-            showToast('Координата Y должна быть числом!', 'error');
-            yInput.classList.add('input-error');
-            return;
-        }
+        // 1 четверть: прямоугольник (ширина R, высота R/2)
+        ctx.fillRect(150, 150 - halfRPx, rPx, halfRPx);
 
-        // Строго (-5 ... 3)
-        if (yVal <= -5.0 || yVal >= 3.0) {
-            showToast('Координата Y должна быть строго в интервале (-5 ... 3)!', 'error');
-            yInput.classList.add('input-error');
-            return;
-        }
-        yInput.classList.remove('input-error');
+        // 2 четверть: треугольник (от (-R/2, 0) до (0, R))
+        ctx.beginPath();
+        ctx.moveTo(150, 150);
+        ctx.lineTo(150 - halfRPx, 150);
+        ctx.lineTo(150, 150 - rPx);
+        ctx.closePath();
+        ctx.fill();
 
-        // Валидация R
-        const rVal = parseFloat(rSelect.value);
-        if (isNaN(rVal) || rVal <= 0) {
-            showToast('Выберите корректный радиус R!', 'error');
-            return;
-        }
-
-        processPointCheck(selectedX, yVal, rVal, false);
-    });
-
-    // 6. Очистка истории проверок
-    const clearBtn = document.getElementById('clear-btn');
-    if (clearBtn) {
-        clearBtn.addEventListener('click', function () {
-            pointsHistory = [];
-            localStorage.removeItem('weblab3_history');
-            renderTable();
-            redrawCanvas();
-            showToast('История проверок успешно очищена!', 'success');
-        });
+        // 4 четверть: четверть круга радиуса R (от (R, 0) до (0, -R))
+        ctx.beginPath();
+        ctx.moveTo(150, 150);
+        ctx.arc(150, 150, rPx, 0, Math.PI / 2, false);
+        ctx.closePath();
+        ctx.fill();
     }
 
-    // ================== ПРОВЕРКА ПОПАДАНИЯ В ОБЛАСТЬ ==================
+    // Отрисовка невидимых стен (ограничение допустимой зоны: X: -4..4, Y: от -5 до 3 не включая) пунктирной рамкой
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#ff4444';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(30, 60, 240, 240);
+    ctx.setLineDash([]);
 
-    function checkHit(x, y, r) {
-        // I четверть: прямоугольник со сторонами R и R/2
-        if (x >= 0 && y >= 0) {
-            return (x <= r) && (y <= r / 2.0);
+    // Оси координат
+    ctx.beginPath();
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+
+    ctx.moveTo(0, 150); ctx.lineTo(300, 150);
+    ctx.moveTo(150, 0); ctx.lineTo(150, 300);
+
+    // Стрелочки
+    ctx.moveTo(290, 145); ctx.lineTo(300, 150); ctx.lineTo(290, 155);
+    ctx.moveTo(145, 10);  ctx.lineTo(150, 0);   ctx.lineTo(155, 10);
+
+    // Засечки и метки на осях
+    var rLabel = hasValidR ? rNum : 'R';
+    var rHalfLabel = hasValidR ? (rNum / 2) : 'R/2';
+    var rPxVal = rNum * SCALE;
+    var halfRPxVal = (rNum / 2) * SCALE;
+
+    var ticks = [
+        { px: 150 - rPxVal, label: hasValidR ? (-rNum).toString() : '-R', axis: 'x' },
+        { px: 150 - halfRPxVal, label: hasValidR ? (-rNum / 2).toString() : '-R/2', axis: 'x' },
+        { px: 150 + halfRPxVal, label: hasValidR ? (rNum / 2).toString() : 'R/2', axis: 'x' },
+        { px: 150 + rPxVal, label: hasValidR ? rNum.toString() : 'R', axis: 'x' },
+        { py: 150 - rPxVal, label: hasValidR ? rNum.toString() : 'R', axis: 'y' },
+        { py: 150 - halfRPxVal, label: hasValidR ? (rNum / 2).toString() : 'R/2', axis: 'y' },
+        { py: 150 + halfRPxVal, label: hasValidR ? (-rNum / 2).toString() : '-R/2', axis: 'y' },
+        { py: 150 + rPxVal, label: hasValidR ? (-rNum).toString() : '-R', axis: 'y' }
+    ];
+
+    for (var i = 0; i < ticks.length; i++) {
+        var t = ticks[i];
+        if (t.axis === 'x') {
+            if (t.px >= 10 && t.px <= 290) {
+                ctx.moveTo(t.px, 145);
+                ctx.lineTo(t.px, 155);
+            }
+        } else {
+            if (t.py >= 10 && t.py <= 290) {
+                ctx.moveTo(145, t.py);
+                ctx.lineTo(155, t.py);
+            }
         }
-        // II четверть: треугольник (-R/2, 0) -> (0, R)
-        if (x <= 0 && y >= 0) {
-            return (x >= -r / 2.0) && (y <= 2.0 * x + r);
+    }
+    ctx.stroke();
+
+    // Подписи осей и меток
+    ctx.fillStyle = '#000000';
+    ctx.font = '11px monospace';
+    ctx.fillText('x', 285, 140);
+    ctx.fillText('y', 160, 15);
+
+    for (var j = 0; j < ticks.length; j++) {
+        var item = ticks[j];
+        if (item.axis === 'x') {
+            if (item.px >= 10 && item.px <= 280) {
+                ctx.fillText(item.label, item.px - 10, 140);
+            }
+        } else {
+            if (item.py >= 20 && item.py <= 290) {
+                ctx.fillText(item.label, 160, item.py + 4);
+            }
         }
-        // III четверть: пусто
-        if (x <= 0 && y <= 0) {
-            return false;
-        }
-        // IV четверть: сектор круга радиуса R
-        if (x >= 0 && y <= 0) {
-            return (x * x + y * y <= r * r);
-        }
-        return false;
     }
 
-    function processPointCheck(x, y, r, fromCanvas) {
-        const startTime = performance.now();
-        const hit = checkHit(x, y, r);
-        const endTime = performance.now();
-        const execTimeMs = (endTime - startTime).toFixed(3) + ' мс';
+    narisovatStaryeTochki(rVal);
 
-        const now = new Date();
-        const timeStr = now.toLocaleDateString('ru-RU') + ' ' + now.toLocaleTimeString('ru-RU');
+    if (myishX !== null && hasValidR) {
+        narisovatPricel(myishX, myishY);
+    }
+}
 
-        const resultObj = {
+// Перевод координат курсора с примагничиванием к границам допустимой зоны (X: -4..4, Y: (-5..3))
+function getClampedCoords(canvasX, canvasY) {
+    var raw = pxToXY(canvasX, canvasY);
+    var minX = -4;
+    var maxX = 4;
+    // Границы Y не включая -5 и 3
+    var minY = -4.999;
+    var maxY = 2.999;
+
+    var clampedX = Math.max(minX, Math.min(maxX, raw.x));
+    var clampedY = Math.max(minY, Math.min(maxY, raw.y));
+
+    return {
+        x: Math.round(clampedX * 1000) / 1000,
+        y: Math.round(clampedY * 1000) / 1000
+    };
+}
+
+// Прицел при наведении мыши (точка примагничивается к пунктирной границе)
+function narisovatPricel(cX, cY) {
+    var coords = getClampedCoords(cX, cY);
+    var targetPx = xyToPx(coords.x, coords.y);
+
+    ctx.beginPath();
+    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = '#ff0000';
+    ctx.lineWidth = 1;
+
+    ctx.moveTo(targetPx.x, 150);
+    ctx.lineTo(targetPx.x, targetPx.y);
+    ctx.lineTo(150, targetPx.y);
+    ctx.stroke();
+
+    ctx.setLineDash([]);
+
+    ctx.beginPath();
+    ctx.fillStyle = '#ff0000';
+    ctx.arc(targetPx.x, targetPx.y, 4, 0, 2 * Math.PI);
+    ctx.fill();
+
+    ctx.fillStyle = '#000000';
+    ctx.font = '11px monospace';
+    ctx.fillText('(' + coords.x.toFixed(2) + ', ' + coords.y.toFixed(2) + ')', targetPx.x + 7, targetPx.y - 7);
+}
+
+// Отрисовка точек из истории
+function narisovatStaryeTochki(currentRVal) {
+    for (var i = 0; i < historyOfTochki.length; i++) {
+        var pt = historyOfTochki[i];
+        if (hideInvalidDotes && (pt.isInvalid || pt.isTampered)) {
+            continue;
+        }
+
+        var pos = xyToPx(pt.x, pt.y);
+
+        ctx.beginPath();
+        if (pt.isTampered || pt.isInvalid) {
+            ctx.fillStyle = '#ff8c00';
+        } else if (pt.hit) {
+            ctx.fillStyle = '#00cc00';
+        } else {
+            ctx.fillStyle = '#ff0000';
+        }
+
+        ctx.arc(pos.x, pos.y, 4, 0, 2 * Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = '#000000';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+    }
+}
+
+// Расчет координат мыши с учетом масштаба Canvas
+function getXY(canvas, event) {
+    var rect = canvas.getBoundingClientRect();
+    var scaleX = canvas.width / rect.width;
+    var scaleY = canvas.height / rect.height;
+    return {
+        x: (event.clientX - rect.left) * scaleX,
+        y: (event.clientY - rect.top) * scaleY
+    };
+}
+
+canvas.addEventListener('mousemove', function(e) {
+    var pos = getXY(canvas, e);
+    myishX = pos.x;
+    myishY = pos.y;
+
+    var rVal = document.getElementById('r-select').value;
+    narisovatGrafik(rVal);
+});
+
+canvas.addEventListener('mouseleave', function() {
+    myishX = null;
+    myishY = null;
+
+    var rVal = document.getElementById('r-select').value;
+    narisovatGrafik(rVal);
+});
+
+// Клик по канвасу
+canvas.addEventListener('click', async function(e) {
+    var rSelect = document.getElementById('r-select');
+    var rVal = rSelect.value;
+
+    if (!isValidR(rVal)) {
+        pokazatOshibku('Сначала выберите корректное значение R!');
+        return;
+    }
+
+    var rNum = toStrAndDZ(rVal);
+    var pos = getXY(canvas, e);
+    var coords = getClampedCoords(pos.x, pos.y);
+
+    await otpravitZapros(coords.x, coords.y, rNum, true);
+});
+
+// Вставка строки в таблицу результатов
+function vstavkaVTablicu(x, y, r, hit, timeStr, execTimeStr, isInvalid, isTampered) {
+    var tbody = document.getElementById('results-body');
+    if (!tbody) return;
+
+    var tr = document.createElement('tr');
+
+    if (isTampered || isInvalid) {
+        tr.classList.add('invalid-row');
+        if (hideInvalidDotes) {
+            tr.classList.add('hidden-row');
+        }
+    }
+
+    var resText = (isTampered || isInvalid) ? 'Тут хрень' : (hit === true ? 'Попал' : (hit === false ? 'Мимо' : 'Тут хрень'));
+    var xDisplay = typeof x === 'number' ? x.toFixed(3) : x;
+    var yDisplay = typeof y === 'number' ? y.toFixed(3) : y;
+    var rDisplay = typeof r === 'number' ? r.toFixed(1) : r;
+
+    tr.innerHTML = '<td>' + xDisplay + '</td>' +
+        '<td>' + yDisplay + '</td>' +
+        '<td>' + rDisplay + '</td>' +
+        '<td>' + resText + '</td>' +
+        '<td>' + (timeStr || '-') + '</td>' +
+        '<td>' + (execTimeStr || '-') + '</td>';
+
+    tbody.prepend(tr);
+}
+
+// Загрузка истории точек с сервера (точки хранятся на сервере, а не на клиенте)
+async function zagruzitIstoriyuSServera() {
+    var endpoint = getEndpoint();
+    try {
+        var response = await fetch(endpoint + '?action=history', {
+            method: 'GET'
+        });
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+        var data = await response.json();
+        if (data && Array.isArray(data.points)) {
+            historyOfTochki = [];
+            var tbody = document.getElementById('results-body');
+            tbody.innerHTML = '';
+            for (var i = 0; i < data.points.length; i++) {
+                var p = data.points[i];
+                var xNum = toStrAndDZ(p.x);
+                var yNum = toStrAndDZ(p.y);
+                var rNum = toStrAndDZ(p.r);
+                historyOfTochki.push({
+                    x: xNum,
+                    y: yNum,
+                    r: rNum,
+                    hit: Boolean(p.hit),
+                    isInvalid: false,
+                    isTampered: false
+                });
+                vstavkaVTablicu(xNum, yNum, rNum, p.hit, p.currentTime || p.time, p.executionTime || p.execTime, false, false);
+            }
+            var rVal = document.getElementById('r-select').value;
+            narisovatGrafik(rVal);
+        }
+    } catch(err) {
+        console.warn('Сервер недоступен для загрузки истории, загрузка из локального хранилища:', err);
+        try {
+            var saved = localStorage.getItem('lab3_history');
+            if (saved) {
+                var list = JSON.parse(saved);
+                if (Array.isArray(list)) {
+                    historyOfTochki = list;
+                    var tbody = document.getElementById('results-body');
+                    tbody.innerHTML = '';
+                    for (var k = 0; k < historyOfTochki.length; k++) {
+                        var pt = historyOfTochki[k];
+                        vstavkaVTablicu(pt.x, pt.y, pt.r, pt.hit, pt.time, pt.execTime, false, false);
+                    }
+                    var rVal = document.getElementById('r-select').value;
+                    narisovatGrafik(rVal);
+                }
+            }
+        } catch(e) {}
+    }
+}
+
+function getEndpoint() {
+    // 1. При открытии через веб-сервер факультета (se.ifmo.ru/~s465457)
+    // запросы идут на порт 25000 через поднятый SSH-туннель
+    if (window.location.hostname === 'se.ifmo.ru' || window.location.hostname.endsWith('.se.ifmo.ru')) {
+        return 'http://localhost:25000/fcgi-bin/server.jar';
+    }
+
+    // 2. При локальном тестировании в WebStorm, Live Server или через file://
+    if (window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '25000')) {
+        return 'http://localhost:25000/fcgi-bin/server.jar';
+    }
+
+    // 3. При прямом обращении через веб-сервер Apache (localhost:25000)
+    return '/fcgi-bin/server.jar';
+}
+
+// Отправка AJAX GET запроса на FastCGI сервер
+async function otpravitZapros(x, y, r, fromCanvas) {
+    var endpoint = getEndpoint();
+    var query = '?x=' + encodeURIComponent(x) +
+                '&y=' + encodeURIComponent(y) +
+                '&r=' + encodeURIComponent(r) +
+                '&fromCanvas=' + encodeURIComponent(Boolean(fromCanvas));
+    var url = endpoint + query;
+
+    var startTimeClient = performance.now();
+
+    try {
+        var response = await fetch(url, {
+            method: 'GET'
+        });
+
+        if (!response.ok) {
+            throw new Error('HTTP ' + response.status);
+        }
+
+        var data = await response.json();
+        if (!data.valid) {
+            pokazatOshibku(data.error || 'Сервер отклонил параметры!');
+            return;
+        }
+
+        var entry = {
+            x: data.x,
+            y: data.y,
+            r: data.r,
+            hit: data.hit,
+            time: data.currentTime,
+            execTime: data.executionTime
+        };
+
+        historyOfTochki.push({
+            x: data.x,
+            y: data.y,
+            r: data.r,
+            hit: data.hit,
+            isInvalid: false,
+            isTampered: false
+        });
+
+        vstavkaVTablicu(data.x, data.y, data.r, data.hit, data.currentTime, data.executionTime, false, false);
+        try {
+            localStorage.setItem('lab3_history', JSON.stringify(historyOfTochki));
+        } catch(e) {}
+        narisovatGrafik(r.toString());
+
+    } catch(err) {
+        // Fallback для работы без поднятого Apache FastCGI
+        console.warn('Сервер недоступен, расчет локально:', err);
+        var hit = proverkaPopadaniya(x, y, r);
+        var clientExecTime = (performance.now() - startTimeClient).toFixed(3) + ' мс';
+        var nowStr = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) + ' (Европа/Москва)';
+
+        historyOfTochki.push({
             x: x,
             y: y,
             r: r,
             hit: hit,
-            currentTime: timeStr,
-            executionTime: execTimeMs,
-            fromCanvas: fromCanvas
-        };
-
-        // Пытаемся также уведомить backend сервлет, если он запущен
-        try {
-            fetch('controller', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                    'X-Requested-With': 'XMLHttpRequest'
-                },
-                body: new URLSearchParams({
-                    x: x.toString(),
-                    y: y.toString(),
-                    r: r.toString(),
-                    fromCanvas: Boolean(fromCanvas).toString(),
-                    ajax: 'true'
-                })
-            }).catch(() => {});
-        } catch (_) {}
-
-        // Добавляем в историю
-        pointsHistory.unshift(resultObj);
-        saveHistoryToStorage();
-        renderTable();
-        redrawCanvas();
-
-        if (hit) {
-            showToast(`✓ Точка (${x.toFixed(2)}, ${y.toFixed(2)}) ПОПАЛА в область (R=${r})!`, 'success');
-        } else {
-            showToast(`✗ Точка (${x.toFixed(2)}, ${y.toFixed(2)}) ПРОМАХНУЛАСЬ мимо области (R=${r})!`, 'info');
-        }
-    }
-
-    // ================== РАБОТА С ИСТОРИЕЙ И ТАБЛИЦЕЙ ==================
-
-    function loadHistoryFromStorage() {
-        try {
-            const saved = localStorage.getItem('weblab3_history');
-            if (saved) {
-                pointsHistory = JSON.parse(saved);
-            }
-        } catch (e) {
-            pointsHistory = [];
-        }
-        renderTable();
-        redrawCanvas();
-    }
-
-    function saveHistoryToStorage() {
-        try {
-            localStorage.setItem('weblab3_history', JSON.stringify(pointsHistory));
-        } catch (e) {}
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('results-tbody');
-        const counter = document.getElementById('history-counter');
-        if (!tbody) return;
-
-        if (counter) {
-            counter.textContent = `Всего записей: ${pointsHistory.length}`;
-        }
-
-        if (pointsHistory.length === 0) {
-            tbody.innerHTML = '<tr id="empty-row"><td colspan="6" class="empty-table-msg">История проверок пуста. Отправьте форму или кликните по графику!</td></tr>';
-            return;
-        }
-
-        let html = '';
-        pointsHistory.forEach(item => {
-            const badgeClass = item.hit ? 'badge-hit' : 'badge-miss';
-            const badgeText = item.hit ? 'Попадание' : 'Промах';
-            html += `<tr>
-                <td><strong>${Number(item.x).toFixed(3)}</strong></td>
-                <td><strong>${Number(item.y).toFixed(3)}</strong></td>
-                <td>${item.r}</td>
-                <td><span class="badge ${badgeClass}">${badgeText}</span></td>
-                <td>${item.currentTime}</td>
-                <td>${item.executionTime}</td>
-            </tr>`;
+            isInvalid: false,
+            isTampered: false
         });
-        tbody.innerHTML = html;
+
+        vstavkaVTablicu(x, y, r, hit, nowStr, clientExecTime, false, false);
+        try {
+            localStorage.setItem('lab3_history', JSON.stringify(historyOfTochki));
+        } catch(e) {}
+        narisovatGrafik(r.toString());
+    }
+}
+
+// Очистка ввода от недопустимых символов
+function sanitizeInput(el) {
+    if (!el) return;
+    var rawVal = el.value;
+
+    var val = rawVal.replace(/[^0-9.,-]/g, '');
+    val = val.replace(/[\.,]{2,}/g, '.');
+
+    var parts = val.split(/[\.,]/);
+    if (parts.length > 2) {
+        val = parts[0] + '.' + parts.slice(1).join('');
     }
 
-    // ================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==================
-
-    function getSelectedX() {
-        const checked = Array.from(xCheckboxes).filter(cb => cb.checked);
-        if (checked.length !== 1) return null;
-        return parseFloat(checked[0].value);
+    if (val.indexOf('-') > 0) {
+        val = val.charAt(0) + val.substring(1).replace(/-/g, '');
     }
 
-    function pxToMath(pxX, pxY) {
-        return {
-            x: (pxX - CENTER_X) / SCALE,
-            y: (CENTER_Y - pxY) / SCALE
-        };
+    if (rawVal !== val) {
+        el.value = val;
+    }
+}
+
+// Проверка валидности всей формы для активации кнопки "Проверить"
+function validForm() {
+    var submitBtn = document.getElementById('submit-btn');
+    if (!submitBtn) return;
+
+    var xInput = document.getElementById('x-input');
+    var yInput = document.getElementById('y-input');
+    var rSelect = document.getElementById('r-select');
+
+    if (yInput) sanitizeInput(yInput);
+
+    var xVal = xInput ? xInput.value.trim() : '';
+    var yVal = yInput ? yInput.value.trim() : '';
+    var rVal = rSelect ? rSelect.value.trim() : '';
+
+    if (xVal === '' || yVal === '' || rVal === '') {
+        submitBtn.disabled = true;
+        return;
     }
 
-    function mathToPx(x, y) {
-        return {
-            x: CENTER_X + x * SCALE,
-            y: CENTER_Y - y * SCALE
-        };
-    }
+    var isXValid = isValidX(xVal);
+    var isYValid = isValidY(yVal);
+    var isRValid = isValidR(rVal);
 
-    // Примагничивание к границам зоны: X in [-4, 4], Y in (-5, 3)
-    function clampCoords(x, y) {
-        const minX = -4.0;
-        const maxX = 4.0;
-        const minY = -4.999;
-        const maxY = 2.999;
+    submitBtn.disabled = !(isXValid && isYValid && isRValid);
+}
 
-        const clampedX = Math.max(minX, Math.min(maxX, x));
-        const clampedY = Math.max(minY, Math.min(maxY, y));
+// Обработка выбора чекбоксов X (Checkbox: одиночный выбор)
+var xCheckboxes = document.querySelectorAll('.x-cb');
+var xButtons = document.querySelectorAll('.x-btn');
+var xInput = document.getElementById('x-input');
 
-        return {
-            x: Math.round(clampedX * 1000) / 1000,
-            y: Math.round(clampedY * 1000) / 1000
-        };
-    }
-
-    function getCanvasRelativeCoords(cvs, evt) {
-        const rect = cvs.getBoundingClientRect();
-        const scaleX = cvs.width / rect.width;
-        const scaleY = cvs.height / rect.height;
-        return {
-            x: (evt.clientX - rect.left) * scaleX,
-            y: (evt.clientY - rect.top) * scaleY
-        };
-    }
-
-    // ================== ОТРИСОВКА CANVAS ГРАФИКА ==================
-
-    function redrawCanvas() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const rVal = parseFloat(rSelect.value);
-        const hasValidR = !isNaN(rVal) && rVal > 0;
-        const currentR = hasValidR ? rVal : 2;
-
-        // 1. Область попадания (синий цвет #38bdf8 / #0284c7)
-        if (hasValidR) {
-            ctx.fillStyle = 'rgba(56, 189, 248, 0.7)';
-            ctx.strokeStyle = '#0284c7';
-            ctx.lineWidth = 1.5;
-
-            // I четверть: прямоугольник R x R/2
-            ctx.beginPath();
-            const rPxWidth = currentR * SCALE;
-            const rHalfPxHeight = (currentR / 2.0) * SCALE;
-            ctx.rect(CENTER_X, CENTER_Y - rHalfPxHeight, rPxWidth, rHalfPxHeight);
-            ctx.fill();
-            ctx.stroke();
-
-            // II четверть: треугольник (-R/2, 0) -> (0, R)
-            ctx.beginPath();
-            ctx.moveTo(CENTER_X, CENTER_Y);
-            ctx.lineTo(CENTER_X - (currentR / 2.0) * SCALE, CENTER_Y);
-            ctx.lineTo(CENTER_X, CENTER_Y - currentR * SCALE);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-
-            // IV четверть: четверть круга радиуса R
-            ctx.beginPath();
-            ctx.moveTo(CENTER_X, CENTER_Y);
-            ctx.arc(CENTER_X, CENTER_Y, currentR * SCALE, 0, Math.PI / 2, false);
-            ctx.closePath();
-            ctx.fill();
-            ctx.stroke();
-        }
-
-        // 2. Рамка допустимой зоны (пунктир красным): X in [-4, 4], Y in (-5, 3)
-        ctx.save();
-        ctx.beginPath();
-        ctx.setLineDash([4, 4]);
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.55)';
-        ctx.lineWidth = 1.5;
-
-        const boundLeft = CENTER_X + (-4) * SCALE;
-        const boundRight = CENTER_X + 4 * SCALE;
-        const boundTop = CENTER_Y - 3 * SCALE;
-        const boundBottom = CENTER_Y - (-5) * SCALE;
-
-        ctx.strokeRect(boundLeft, boundTop, boundRight - boundLeft, boundBottom - boundTop);
-        ctx.restore();
-
-        // 3. Оси координат и стрелки
-        ctx.beginPath();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 2;
-
-        // Ось X
-        ctx.moveTo(10, CENTER_Y);
-        ctx.lineTo(canvas.width - 10, CENTER_Y);
-        // Стрелка X
-        ctx.moveTo(canvas.width - 20, CENTER_Y - 5);
-        ctx.lineTo(canvas.width - 10, CENTER_Y);
-        ctx.lineTo(canvas.width - 20, CENTER_Y + 5);
-
-        // Ось Y
-        ctx.moveTo(CENTER_X, canvas.height - 10);
-        ctx.lineTo(CENTER_X, 10);
-        // Стрелка Y
-        ctx.moveTo(CENTER_X - 5, 20);
-        ctx.lineTo(CENTER_X, 10);
-        ctx.lineTo(CENTER_X + 5, 20);
-        ctx.stroke();
-
-        // 4. Засечки и подписи меток осей
-        const ticks = [
-            { x: -currentR, label: hasValidR ? (-currentR).toString() : '-R', axis: 'x' },
-            { x: -currentR / 2, label: hasValidR ? (-currentR / 2).toString() : '-R/2', axis: 'x' },
-            { x: currentR / 2, label: hasValidR ? (currentR / 2).toString() : 'R/2', axis: 'x' },
-            { x: currentR, label: hasValidR ? currentR.toString() : 'R', axis: 'x' },
-
-            { y: currentR, label: hasValidR ? currentR.toString() : 'R', axis: 'y' },
-            { y: currentR / 2, label: hasValidR ? (currentR / 2).toString() : 'R/2', axis: 'y' },
-            { y: -currentR / 2, label: hasValidR ? (-currentR / 2).toString() : '-R/2', axis: 'y' },
-            { y: -currentR, label: hasValidR ? (-currentR).toString() : '-R', axis: 'y' }
-        ];
-
-        ctx.beginPath();
-        ctx.strokeStyle = '#0f172a';
-        ctx.lineWidth = 1.5;
-        ctx.fillStyle = '#0f172a';
-        ctx.font = '11px monospace';
-
-        ticks.forEach(t => {
-            if (t.axis === 'x') {
-                const pt = mathToPx(t.x, 0);
-                if (pt.x >= 15 && pt.x <= canvas.width - 15) {
-                    ctx.moveTo(pt.x, CENTER_Y - 4);
-                    ctx.lineTo(pt.x, CENTER_Y + 4);
-                    ctx.fillText(t.label, pt.x - 8, CENTER_Y + 18);
-                }
+if (xCheckboxes.length > 0) {
+    xCheckboxes.forEach(function(cb) {
+        cb.addEventListener('change', function() {
+            if (this.checked) {
+                xCheckboxes.forEach(function(other) {
+                    if (other !== cb) {
+                        other.checked = false;
+                        if (other.parentElement) other.parentElement.classList.remove('active');
+                    }
+                });
+                if (this.parentElement) this.parentElement.classList.add('active');
+                xInput.value = this.value;
             } else {
-                const pt = mathToPx(0, t.y);
-                if (pt.y >= 25 && pt.y <= canvas.height - 15) {
-                    ctx.moveTo(CENTER_X - 4, pt.y);
-                    ctx.lineTo(CENTER_X + 4, pt.y);
-                    ctx.fillText(t.label, CENTER_X + 10, pt.y + 4);
-                }
+                if (this.parentElement) this.parentElement.classList.remove('active');
+                xInput.value = '';
             }
+            validForm();
         });
-        ctx.stroke();
+    });
+}
 
-        ctx.fillText('x', canvas.width - 18, CENTER_Y - 10);
-        ctx.fillText('y', CENTER_X + 10, 20);
-
-        // 5. Отрисовка всех точек из истории
-        pointsHistory.forEach(pt => {
-            const p = mathToPx(pt.x, pt.y);
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-            ctx.fillStyle = pt.hit ? '#10b981' : '#ef4444';
-            ctx.fill();
-            ctx.strokeStyle = '#0f172a';
-            ctx.lineWidth = 1;
-            ctx.stroke();
-        });
-
-        // 6. Отрисовка прицела мыши с примагничиванием
-        if (mouseX !== null && mouseY !== null && hasValidR) {
-            drawCursorCrosshair(mouseX, mouseY);
+xButtons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+        if (this.classList.contains('active')) {
+            this.classList.remove('active');
+            xInput.value = '';
+        } else {
+            xButtons.forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+            xInput.value = this.getAttribute('data-value');
         }
-    }
-
-    function drawCursorCrosshair(rawPxX, rawPxY) {
-        const mathCoords = pxToMath(rawPxX, rawPxY);
-        const clamped = clampCoords(mathCoords.x, mathCoords.y);
-        const targetPx = mathToPx(clamped.x, clamped.y);
-
-        ctx.save();
-        ctx.beginPath();
-        ctx.setLineDash([3, 3]);
-        ctx.strokeStyle = 'rgba(239, 68, 68, 0.7)';
-        ctx.lineWidth = 1;
-
-        // Проекции на оси
-        ctx.moveTo(targetPx.x, CENTER_Y);
-        ctx.lineTo(targetPx.x, targetPx.y);
-        ctx.lineTo(CENTER_X, targetPx.y);
-        ctx.stroke();
-        ctx.restore();
-
-        // Точка прицела
-        ctx.beginPath();
-        ctx.arc(targetPx.x, targetPx.y, 5, 0, Math.PI * 2);
-        ctx.fillStyle = '#ef4444';
-        ctx.fill();
-        ctx.strokeStyle = '#ffffff';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Плашка с координатами
-        ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-        const text = `(${clamped.x.toFixed(2)}, ${clamped.y.toFixed(2)})`;
-        ctx.font = '11px sans-serif';
-        const textWidth = ctx.measureText(text).width;
-        let tooltipX = targetPx.x + 8;
-        let tooltipY = targetPx.y - 8;
-
-        if (tooltipX + textWidth + 10 > canvas.width) {
-            tooltipX = targetPx.x - textWidth - 14;
-        }
-        if (tooltipY - 14 < 0) {
-            tooltipY = targetPx.y + 18;
-        }
-
-        ctx.fillRect(tooltipX - 4, tooltipY - 12, textWidth + 8, 16);
-        ctx.fillStyle = '#ffffff';
-        ctx.fillText(text, tooltipX, tooltipY);
-    }
-
-    // ================== УВЕДОМЛЕНИЯ (TOASTS) ==================
-
-    function showToast(message, type = 'info') {
-        const container = document.getElementById('toast-container');
-        if (!container) return;
-
-        const toast = document.createElement('div');
-        toast.className = `toast toast-${type}`;
-        toast.textContent = message;
-
-        container.appendChild(toast);
-
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateY(-10px)';
-            setTimeout(() => {
-                if (toast.parentNode === container) {
-                    container.removeChild(toast);
-                }
-            }, 300);
-        }, 3200);
-    }
+        validForm();
+    });
 });
+
+// Слушатели для Y и R
+var yInputEl = document.getElementById('y-input');
+var rSelectEl = document.getElementById('r-select');
+
+if (yInputEl) {
+    yInputEl.addEventListener('input', validForm);
+    yInputEl.addEventListener('keyup', validForm);
+}
+
+if (rSelectEl) {
+    rSelectEl.addEventListener('change', function() {
+        validForm();
+        narisovatGrafik(this.value);
+    });
+}
+
+// Пасхалка танца таблиц
+var topInput = document.getElementById('top-left-input');
+if (topInput) {
+    topInput.addEventListener('input', function() {
+        var val = this.value.trim().toLowerCase();
+        if (val === 'dance' || val === 'dancce' || val === codeword) {
+            startDance();
+        } else {
+            stopDance();
+        }
+    });
+}
+
+// Кнопка показа/скрытия невалидных точек
+var toggleInvalidBtn = document.getElementById('toggle-invalid-btn');
+if (toggleInvalidBtn) {
+    toggleInvalidBtn.textContent = hideInvalidDotes ? 'Показать невалидные' : 'Скрыть невалидные';
+
+    toggleInvalidBtn.addEventListener('click', function() {
+        hideInvalidDotes = !hideInvalidDotes;
+
+        var invalidRows = document.querySelectorAll('.invalid-row');
+        for (var i = 0; i < invalidRows.length; i++) {
+            if (hideInvalidDotes) {
+                invalidRows[i].classList.add('hidden-row');
+            } else {
+                invalidRows[i].classList.remove('hidden-row');
+            }
+        }
+
+        this.textContent = hideInvalidDotes ? 'Показать невалидные' : 'Скрыть невалидные';
+
+        var rVal = document.getElementById('r-select').value;
+        narisovatGrafik(rVal);
+    });
+}
+
+// Отправка формы
+document.getElementById('point-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    var xVal = document.getElementById('x-input').value;
+    if (!isValidX(xVal)) {
+        pokazatOshibku('Выберите значение координаты X!');
+        return;
+    }
+
+    var yVal = document.getElementById('y-input').value;
+    if (!isValidY(yVal)) {
+        pokazatOshibku('Введите Y строго в интервале (-5 ... 3)!');
+        return;
+    }
+
+    var rVal = document.getElementById('r-select').value;
+    if (!isValidR(rVal)) {
+        pokazatOshibku('Выберите значение R из предложенного списка!');
+        return;
+    }
+
+    var xNum = toStrAndDZ(xVal);
+    var yNum = toStrAndDZ(yVal);
+    var rNum = toStrAndDZ(rVal);
+
+    await otpravitZapros(xNum, yNum, rNum, false);
+});
+
+// Очистка таблицы и истории на сервере
+document.getElementById('clear-btn').addEventListener('click', async function() {
+    var endpoint = getEndpoint();
+    try {
+        await fetch(endpoint + '?action=clear', {
+            method: 'GET'
+        });
+    } catch(err) {
+        console.warn('Не удалось очистить историю на сервере:', err);
+    }
+
+    try {
+        localStorage.removeItem('lab3_history');
+    } catch(e) {}
+
+    document.getElementById('results-body').innerHTML = '';
+    historyOfTochki = [];
+    var rVal = document.getElementById('r-select').value;
+    narisovatGrafik(rVal);
+});
+
+// Инициализация при загрузке страницы: загружаем сохраненные точки
+zagruzitIstoriyuSServera();
+validForm();
+narisovatGrafik(document.getElementById('r-select').value);
