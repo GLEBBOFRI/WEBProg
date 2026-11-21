@@ -262,3 +262,233 @@ input[type="submit"]:disabled {
 .back-link:hover {
     background-color: #0000cd;
 }
+
+/* пасхалочка fnaf 1 (6:00 am попадание) */
+#fnaf-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: #000000;
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+    overflow: hidden;
+    user-select: none;
+}
+
+#fnaf-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* кинескопные полосы crt-монитора как в fnaf */
+#fnaf-overlay::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        rgba(0, 0, 0, 0) 0px,
+        rgba(0, 0, 0, 0) 2px,
+        rgba(0, 0, 0, 0.5) 3px,
+        rgba(0, 0, 0, 0.5) 4px
+    );
+    pointer-events: none;
+    z-index: 5;
+}
+
+/* холст с летающими конфетти */
+#fnaf-confetti {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.fnaf-clock {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 54px;
+    font-weight: 900;
+    color: #e0e0e0;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.8), 0 0 30px rgba(76, 175, 80, 0.6);
+    letter-spacing: 8px;
+    margin-bottom: 25px;
+    z-index: 15;
+    animation: fnafGlow 1.2s ease-in-out infinite alternate;
+}
+
+.fnaf-rollers-box {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 25px;
+    z-index: 15;
+}
+
+/* отдельный кругляш-барабан для одной буквы */
+.fnaf-slot {
+    position: relative;
+    width: 50px;
+    height: 74px;
+    background: linear-gradient(180deg, #181818 0%, #0d0d0d 50%, #151515 100%);
+    border: 2px solid #3a3a3a;
+    border-radius: 8px;
+    box-shadow: inset 0 0 12px #000, 0 6px 16px rgba(0,0,0,0.9);
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* механическая полоска посередине как на олдскульных табло */
+.fnaf-slot::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: rgba(0, 0, 0, 0.85);
+    box-shadow: 0 1px 1px rgba(255, 255, 255, 0.15);
+    z-index: 4;
+}
+
+/* лента с крутящимися буквами */
+.fnaf-reel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    transform: translateY(0);
+    transition: transform 1.2s cubic-bezier(0.15, 0.9, 0.25, 1);
+}
+
+.fnaf-char {
+    height: 74px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 38px;
+    font-weight: 900;
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.9);
+}
+
+.fnaf-subtext {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 18px;
+    color: #888888;
+    letter-spacing: 4px;
+    z-index: 15;
+    text-transform: uppercase;
+}
+
+.fnaf-skip-hint {
+    position: absolute;
+    bottom: 20px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #444;
+    letter-spacing: 2px;
+    z-index: 15;
+}
+
+@keyframes fnafGlow {
+    from { text-shadow: 0 0 10px rgba(255,255,255,0.6); }
+    to { text-shadow: 0 0 25px rgba(74, 222, 128, 0.9), 0 0 40px rgba(74, 222, 128, 0.6); }
+}
+
+/* пасхалочка gta wasted (промах) */
+#gta-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: radial-gradient(circle, rgba(0, 0, 0, 0.15) 30%, rgba(0, 0, 0, 0.92) 95%);
+    z-index: 999999;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease-out;
+    user-select: none;
+    overflow: hidden;
+}
+
+#gta-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+/* черная полоса на весь экран как в gta v */
+.gta-banner {
+    width: 100%;
+    padding: 24px 0;
+    background: rgba(0, 0, 0, 0.82);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+    transform: scaleY(0);
+    transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+}
+
+#gta-overlay.active .gta-banner {
+    transform: scaleY(1);
+}
+
+/* фирменный шрифт надписи промах / wasted */
+.gta-title {
+    font-family: 'Impact', 'Arial Black', sans-serif;
+    font-size: 82px;
+    font-weight: 900;
+    color: #b71c1c;
+    letter-spacing: 12px;
+    text-transform: uppercase;
+    text-shadow: 0 0 25px rgba(183, 28, 28, 0.85), 3px 3px 6px #000;
+    transform: scale(0.9);
+    transition: transform 3.5s ease-out;
+}
+
+#gta-overlay.active .gta-title {
+    transform: scale(1.15);
+}
+
+.gta-subtitle {
+    font-family: monospace;
+    font-size: 15px;
+    color: #d1d5db;
+    letter-spacing: 5px;
+    text-transform: uppercase;
+    margin-top: 10px;
+}
+
+/* тряска экрана при промахе */
+.gta-shake {
+    animation: gtaRumble 0.35s ease-out;
+}
+
+@keyframes gtaRumble {
+    0% { transform: translate(0, 0); }
+    20% { transform: translate(-8px, 6px); }
+    40% { transform: translate(7px, -5px); }
+    60% { transform: translate(-5px, 4px); }
+    80% { transform: translate(4px, -3px); }
+    100% { transform: translate(0, 0); }
+}
+

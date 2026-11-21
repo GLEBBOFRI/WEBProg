@@ -1,5 +1,5 @@
 const canvas = document.getElementById('graph');
-const ctx = canvas.getContext('2d');
+const ctx = canvas ? canvas.getContext('2d') : null;
 
 var historyOfTochki = [];
 var myishX = null;
@@ -12,6 +12,335 @@ var hideInvalidDotes = true;
 
 const codeword = 'абобус';
 const SCALE = 30; // 1 единица = 30 пикселей (при ширине 300px диапазон от -4 до 4 составляет [-120px, +120px])
+
+// веб-аудио контекст для процедурного синтеза звуков фнафа и гта без внешних файлов
+var easterAudioCtx = null;
+function getAudioContext() {
+    try {
+        if (!easterAudioCtx) {
+            var AudioCtx = window.AudioContext || window.webkitAudioContext;
+            if (AudioCtx) {
+                easterAudioCtx = new AudioCtx();
+            }
+        }
+        if (easterAudioCtx && easterAudioCtx.state === 'suspended') {
+            easterAudioCtx.resume();
+        }
+        return easterAudioCtx;
+    } catch(e) {
+        return null;
+    }
+}
+
+// синтезируем колокольный перезвон и детский восторженный крик как в fnaf 1 (6:00 am)
+function playFnafSound() {
+    var aCtx = getAudioContext();
+    if (!aCtx) return;
+    var now = aCtx.currentTime;
+
+    // перезвон курантов (ноты e4, g#4, f#4, b3)
+    var melody = [
+        { f: 329.63, t: 0.0, d: 0.45 },
+        { f: 415.30, t: 0.22, d: 0.45 },
+        { f: 369.99, t: 0.44, d: 0.45 },
+        { f: 246.94, t: 0.66, d: 0.65 }
+    ];
+
+    melody.forEach(function(note) {
+        var osc = aCtx.createOscillator();
+        var gain = aCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(note.f, now + note.t);
+        gain.gain.setValueAtTime(0.25, now + note.t);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + note.t + note.d);
+        osc.connect(gain);
+        gain.connect(aCtx.destination);
+        osc.start(now + note.t);
+        osc.stop(now + note.t + note.d);
+    });
+
+    // тяжелый колокольный звон 6 утра с металлическими обертонами
+    var bellOsc1 = aCtx.createOscillator();
+    var bellOsc2 = aCtx.createOscillator();
+    var bellGain = aCtx.createGain();
+    bellOsc1.type = 'sine';
+    bellOsc2.type = 'sine';
+    bellOsc1.frequency.setValueAtTime(164.81, now + 0.9);
+    bellOsc2.frequency.setValueAtTime(164.81 * 2.76, now + 0.9);
+    bellGain.gain.setValueAtTime(0.4, now + 0.9);
+    bellGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+    bellOsc1.connect(bellGain);
+    bellOsc2.connect(bellGain);
+    bellGain.connect(aCtx.destination);
+    bellOsc1.start(now + 0.9);
+    bellOsc2.start(now + 0.9);
+    bellOsc1.stop(now + 3.3);
+    bellOsc2.stop(now + 3.3);
+
+    // синтезируем крики детской радости через полосовой шум
+    var bufSize = Math.floor(aCtx.sampleRate * 2.2);
+    var buffer = aCtx.createBuffer(1, bufSize, aCtx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < bufSize; i++) {
+        data[i] = (Math.random() * 2 - 1) * 0.7;
+    }
+    var noise = aCtx.createBufferSource();
+    noise.buffer = buffer;
+    var filter = aCtx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.frequency.setValueAtTime(1100, now + 1.0);
+    filter.Q.setValueAtTime(2.5, now + 1.0);
+    var cheerGain = aCtx.createGain();
+    cheerGain.gain.setValueAtTime(0.001, now + 1.0);
+    cheerGain.gain.linearRampToValueAtTime(0.28, now + 1.3);
+    cheerGain.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+    noise.connect(filter);
+    filter.connect(cheerGain);
+    cheerGain.connect(aCtx.destination);
+    noise.start(now + 1.0);
+    noise.stop(now + 3.2);
+}
+
+// звук механического щелчка барабана при прокрутке букв
+function playSlotTick() {
+    var aCtx = getAudioContext();
+    if (!aCtx) return;
+    var now = aCtx.currentTime;
+    var osc = aCtx.createOscillator();
+    var gain = aCtx.createGain();
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(1200, now);
+    osc.frequency.exponentialRampToValueAtTime(90, now + 0.035);
+    gain.gain.setValueAtTime(0.18, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+    osc.connect(gain);
+    gain.connect(aCtx.destination);
+    osc.start(now);
+    osc.stop(now + 0.04);
+}
+
+// синтезируем звук wasted из gta: глубокий саб-удар и тревожный диссонанс
+function playGtaSound() {
+    var aCtx = getAudioContext();
+    if (!aCtx) return;
+    var now = aCtx.currentTime;
+
+    // саб-басовый удар в грудь
+    var subOsc = aCtx.createOscillator();
+    var subGain = aCtx.createGain();
+    subOsc.type = 'sine';
+    subOsc.frequency.setValueAtTime(80, now);
+    subOsc.frequency.exponentialRampToValueAtTime(22, now + 1.0);
+    subGain.gain.setValueAtTime(0.7, now);
+    subGain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+    subOsc.connect(subGain);
+    subGain.connect(aCtx.destination);
+    subOsc.start(now);
+    subOsc.stop(now + 2.6);
+
+    // диссонирующие пилы wasted (минорный тритон)
+    var chord = [110.0, 155.56, 220.0, 311.13];
+    chord.forEach(function(freq) {
+        var osc = aCtx.createOscillator();
+        var gain = aCtx.createGain();
+        var lp = aCtx.createBiquadFilter();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now);
+        osc.frequency.linearRampToValueAtTime(freq * 0.97, now + 2.4);
+        lp.type = 'lowpass';
+        lp.frequency.setValueAtTime(750, now);
+        lp.frequency.exponentialRampToValueAtTime(130, now + 2.4);
+        gain.gain.setValueAtTime(0.16, now);
+        gain.gain.exponentialRampToValueAtTime(0.0001, now + 2.5);
+        osc.connect(lp);
+        lp.connect(gain);
+        gain.connect(aCtx.destination);
+        osc.start(now);
+        osc.stop(now + 2.6);
+    });
+}
+
+// запуск летающих конфетти на холсте fnaf оверлея
+var confettiAnimId = null;
+function runConfetti(canvasEl) {
+    if (!canvasEl) return;
+    var ctxC = canvasEl.getContext('2d');
+    canvasEl.width = window.innerWidth;
+    canvasEl.height = window.innerHeight;
+
+    var particles = [];
+    var colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4', '#e11d48'];
+    for (var i = 0; i < 90; i++) {
+        particles.push({
+            x: Math.random() * canvasEl.width,
+            y: Math.random() * -canvasEl.height,
+            size: Math.random() * 8 + 6,
+            color: colors[Math.floor(Math.random() * colors.length)],
+            vx: (Math.random() - 0.5) * 4,
+            vy: Math.random() * 4 + 3,
+            rot: Math.random() * 360,
+            vRot: (Math.random() - 0.5) * 8
+        });
+    }
+
+    if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
+
+    function frame() {
+        ctxC.clearRect(0, 0, canvasEl.width, canvasEl.height);
+        for (var j = 0; j < particles.length; j++) {
+            var p = particles[j];
+            p.x += p.vx;
+            p.y += p.vy;
+            p.rot += p.vRot;
+            ctxC.save();
+            ctxC.translate(p.x, p.y);
+            ctxC.rotate(p.rot * Math.PI / 180);
+            ctxC.fillStyle = p.color;
+            ctxC.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+            ctxC.restore();
+
+            if (p.y > canvasEl.height + 20) {
+                p.y = -20;
+                p.x = Math.random() * canvasEl.width;
+            }
+        }
+        confettiAnimId = requestAnimationFrame(frame);
+    }
+    frame();
+}
+
+function stopConfetti() {
+    if (confettiAnimId) {
+        cancelAnimationFrame(confettiAnimId);
+        confettiAnimId = null;
+    }
+}
+
+// триггер пасхалки fnaf 1 (попадание): крутящиеся буквы, часы 6 am и конфетти
+var fnafTimeout = null;
+function triggerFnafEasterEgg() {
+    if (fnafTimeout) clearTimeout(fnafTimeout);
+
+    var overlay = document.getElementById('fnaf-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'fnaf-overlay';
+        overlay.innerHTML = '<canvas id="fnaf-confetti"></canvas>' +
+            '<div class="fnaf-clock">6:00 AM</div>' +
+            '<div class="fnaf-rollers-box" id="fnaf-slots"></div>' +
+            '<div class="fnaf-subtext">Смена окончена • Точка попала</div>' +
+            '<div class="fnaf-skip-hint">кликни чтобы закрыть</div>';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', closeFnafEasterEgg);
+    }
+
+    var slotsBox = document.getElementById('fnaf-slots');
+    slotsBox.innerHTML = '';
+
+    var word = 'ПОПАДАНИЕ'.split('');
+    var reels = [];
+
+    // создаем механические барабаны для каждой буквы слова ПОПАДАНИЕ
+    word.forEach(function(char) {
+        var slot = document.createElement('div');
+        slot.className = 'fnaf-slot';
+
+        var reel = document.createElement('div');
+        reel.className = 'fnaf-reel';
+
+        var pool = ['0', '1', '2', '3', '4', '5', 'X', 'Y', 'R', '★', '◆', char];
+        pool.forEach(function(c) {
+            var el = document.createElement('div');
+            el.className = 'fnaf-char';
+            el.textContent = c;
+            reel.appendChild(el);
+        });
+
+        slot.appendChild(reel);
+        slotsBox.appendChild(slot);
+        reels.push({ reel: reel, targetOffset: (pool.length - 1) * 74 });
+    });
+
+    overlay.classList.add('active');
+
+    // поочередно крутим и защелкиваем барабаны с щелчками
+    reels.forEach(function(item, idx) {
+        setTimeout(function() {
+            item.reel.style.transform = 'translateY(-' + item.targetOffset + 'px)';
+            playSlotTick();
+        }, 120 + idx * 110);
+    });
+
+    // когда буквы встали на место — врубаем колокол и праздничные конфетти
+    var finishDelay = 120 + word.length * 110 + 200;
+    setTimeout(function() {
+        if (!overlay.classList.contains('active')) return;
+        playFnafSound();
+        var confCanvas = document.getElementById('fnaf-confetti');
+        runConfetti(confCanvas);
+    }, finishDelay);
+
+    fnafTimeout = setTimeout(function() {
+        closeFnafEasterEgg();
+    }, 4500);
+}
+
+function closeFnafEasterEgg() {
+    if (fnafTimeout) clearTimeout(fnafTimeout);
+    var overlay = document.getElementById('fnaf-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+    stopConfetti();
+}
+
+// триггер пасхалки gta wasted (промах): затемнение, тряска и саб-бас
+var gtaTimeout = null;
+function triggerGtaEasterEgg() {
+    if (gtaTimeout) clearTimeout(gtaTimeout);
+
+    var overlay = document.getElementById('gta-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'gta-overlay';
+        overlay.innerHTML = '<div class="gta-banner" id="gta-banner">' +
+            '<div class="gta-title">ПРОМАХ</div>' +
+            '<div class="gta-subtitle">Точка не попала в заданную область</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click', closeGtaEasterEgg);
+    }
+
+    var banner = document.getElementById('gta-banner');
+    if (banner) {
+        banner.classList.remove('gta-shake');
+        void banner.offsetWidth;
+        banner.classList.add('gta-shake');
+    }
+
+    overlay.classList.add('active');
+    playGtaSound();
+
+    gtaTimeout = setTimeout(function() {
+        closeGtaEasterEgg();
+    }, 3400);
+}
+
+function closeGtaEasterEgg() {
+    if (gtaTimeout) clearTimeout(gtaTimeout);
+    var overlay = document.getElementById('gta-overlay');
+    if (overlay) {
+        overlay.classList.remove('active');
+    }
+}
+
+// закрытие пасхалок по кнопке esc
+window.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeFnafEasterEgg();
+        closeGtaEasterEgg();
+    }
+});
 
 // склеиваем json-строку и хэшируем через djb2 чтоб данные не подделали
 function protectothack(dataObj) {
@@ -161,6 +490,7 @@ function proverkaPopadaniya(x, y, r) {
 
 // отрисовываем всю фигуру варианта 3 лабы на холсте
 function narisovatGrafik(rVal) {
+    if (!ctx) return;
     ctx.clearRect(0, 0, 300, 300);
 
     var hasValidR = isValidR(rVal);
@@ -291,6 +621,7 @@ function getClampedCoords(canvasX, canvasY) {
 
 // рисуем прицел мышки с пунктирными проекциями на оси
 function narisovatPricel(cX, cY) {
+    if (!ctx) return;
     var coords = getClampedCoords(cX, cY);
     var targetPx = xyToPx(coords.x, coords.y);
 
@@ -318,6 +649,7 @@ function narisovatPricel(cX, cY) {
 
 // отрисовываем точки из истории проверок (зеленые - попал, красные - мимо)
 function narisovatStaryeTochki(currentRVal) {
+    if (!ctx) return;
     for (var i = 0; i < historyOfTochki.length; i++) {
         var pt = historyOfTochki[i];
         if (hideInvalidDotes && (pt.isInvalid || pt.isTampered)) {
@@ -344,51 +676,53 @@ function narisovatStaryeTochki(currentRVal) {
 }
 
 // вычисляем точные координаты курсора с учетом реального размера канваса
-function getXY(canvas, event) {
-    var rect = canvas.getBoundingClientRect();
-    var scaleX = canvas.width / rect.width;
-    var scaleY = canvas.height / rect.height;
+function getXY(cvs, event) {
+    var rect = cvs.getBoundingClientRect();
+    var scaleX = cvs.width / rect.width;
+    var scaleY = cvs.height / rect.height;
     return {
         x: (event.clientX - rect.left) * scaleX,
         y: (event.clientY - rect.top) * scaleY
     };
 }
 
-// трекаем движение мыши для прицела
-canvas.addEventListener('mousemove', function(e) {
-    var pos = getXY(canvas, e);
-    myishX = pos.x;
-    myishY = pos.y;
+if (canvas) {
+    // трекаем движение мыши для прицела
+    canvas.addEventListener('mousemove', function(e) {
+        var pos = getXY(canvas, e);
+        myishX = pos.x;
+        myishY = pos.y;
 
-    var rVal = document.getElementById('r-select').value;
-    narisovatGrafik(rVal);
-});
+        var rVal = document.getElementById('r-select') ? document.getElementById('r-select').value : '';
+        narisovatGrafik(rVal);
+    });
 
-// убираем прицел когда курсор ушел с холста
-canvas.addEventListener('mouseleave', function() {
-    myishX = null;
-    myishY = null;
+    // убираем прицел когда курсор ушел с холста
+    canvas.addEventListener('mouseleave', function() {
+        myishX = null;
+        myishY = null;
 
-    var rVal = document.getElementById('r-select').value;
-    narisovatGrafik(rVal);
-});
+        var rVal = document.getElementById('r-select') ? document.getElementById('r-select').value : '';
+        narisovatGrafik(rVal);
+    });
 
-// клик по графику: если r выбран — шлем на сервер, если нет — ругаемся о невозможности определения координат
-canvas.addEventListener('click', async function(e) {
-    var rSelect = document.getElementById('r-select');
-    var rVal = rSelect.value;
+    // клик по графику: если r выбран — шлем на сервер, если нет — ругаемся о невозможности определения координат
+    canvas.addEventListener('click', async function(e) {
+        var rSelect = document.getElementById('r-select');
+        var rVal = rSelect ? rSelect.value : '';
 
-    if (!isValidR(rVal)) {
-        pokazatOshibku('Невозможно определить координаты: сначала выберите радиус области R!');
-        return;
-    }
+        if (!isValidR(rVal)) {
+            pokazatOshibku('Невозможно определить координаты: сначала выберите радиус области R!');
+            return;
+        }
 
-    var rNum = toStrAndDZ(rVal);
-    var pos = getXY(canvas, e);
-    var coords = getClampedCoords(pos.x, pos.y);
+        var rNum = toStrAndDZ(rVal);
+        var pos = getXY(canvas, e);
+        var coords = getClampedCoords(pos.x, pos.y);
 
-    await otpravitZapros(coords.x, coords.y, rNum, true);
-});
+        await otpravitZapros(coords.x, coords.y, rNum, true);
+    });
+}
 
 // добавляем свежую строку в html-таблицу на клиенте
 function vstavkaVTablicu(x, y, r, hit, timeStr, execTimeStr, isInvalid, isTampered) {
@@ -471,6 +805,13 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         vstavkaVTablicu(data.x, data.y, data.r, data.hit, data.currentTime, data.executionTime, false, false);
         narisovatGrafik(r.toString());
 
+        // врубаем эпичные пасхалки: попадание -> fnaf 1 (6:00 am), промах -> gta wasted
+        if (data.hit) {
+            triggerFnafEasterEgg();
+        } else {
+            triggerGtaEasterEgg();
+        }
+
     } catch(err) {
         console.warn('Сервер недоступен, расчет локально:', err);
         var hit = proverkaPopadaniya(x, y, r);
@@ -488,6 +829,13 @@ async function otpravitZapros(x, y, r, fromCanvas) {
 
         vstavkaVTablicu(x, y, r, hit, nowStr, clientExecTime, false, false);
         narisovatGrafik(r.toString());
+
+        // пасхалка срабатывает даже при локальном фоллбэке
+        if (hit) {
+            triggerFnafEasterEgg();
+        } else {
+            triggerGtaEasterEgg();
+        }
     }
 }
 
@@ -581,13 +929,19 @@ if (rSelectEl) {
     });
 }
 
-// слушаем поле пасхалки на ввод триггерных слов
+// слушаем поле пасхалки на ввод триггерных слов (dance, fnaf, wasted, абобус)
 var topInput = document.getElementById('top-left-input');
 if (topInput) {
     topInput.addEventListener('input', function() {
         var val = this.value.trim().toLowerCase();
         if (val === 'dance' || val === 'dancce' || val === codeword) {
             startDance();
+        } else if (val === 'fnaf' || val === '6am' || val === 'попадание') {
+            stopDance();
+            triggerFnafEasterEgg();
+        } else if (val === 'gta' || val === 'wasted' || val === 'промах') {
+            stopDance();
+            triggerGtaEasterEgg();
         } else {
             stopDance();
         }
@@ -613,52 +967,59 @@ if (toggleInvalidBtn) {
 
         this.textContent = hideInvalidDotes ? 'Показать невалидные' : 'Скрыть невалидные';
 
-        var rVal = document.getElementById('r-select').value;
+        var rVal = document.getElementById('r-select') ? document.getElementById('r-select').value : '';
         narisovatGrafik(rVal);
     });
 }
 
 // финальный чекер перед сабмитом формы (улетает post на controller -> area-check -> result.jsp)
-document.getElementById('point-form').addEventListener('submit', function(e) {
-    var xVal = document.getElementById('x-input').value;
-    if (!isValidX(xVal)) {
-        e.preventDefault();
-        pokazatOshibku('Выберите значение координаты X!');
-        return;
-    }
+var pointForm = document.getElementById('point-form');
+if (pointForm) {
+    pointForm.addEventListener('submit', function(e) {
+        var xVal = document.getElementById('x-input') ? document.getElementById('x-input').value : '';
+        if (!isValidX(xVal)) {
+            e.preventDefault();
+            pokazatOshibku('Выберите значение координаты X!');
+            return;
+        }
 
-    var yVal = document.getElementById('y-input').value;
-    if (!isValidY(yVal)) {
-        e.preventDefault();
-        pokazatOshibku('Введите Y строго в интервале (-5 ... 3)!');
-        return;
-    }
+        var yVal = document.getElementById('y-input') ? document.getElementById('y-input').value : '';
+        if (!isValidY(yVal)) {
+            e.preventDefault();
+            pokazatOshibku('Введите Y строго в интервале (-5 ... 3)!');
+            return;
+        }
 
-    var rVal = document.getElementById('r-select').value;
-    if (!isValidR(rVal)) {
-        e.preventDefault();
-        pokazatOshibku('Выберите значение R из предложенного списка!');
-        return;
-    }
-});
+        var rVal = document.getElementById('r-select') ? document.getElementById('r-select').value : '';
+        if (!isValidR(rVal)) {
+            e.preventDefault();
+            pokazatOshibku('Выберите значение R из предложенного списка!');
+            return;
+        }
+    });
+}
 
 // очищаем таблицу и просим контроллер дропнуть историю в сессии
-document.getElementById('clear-btn').addEventListener('click', async function() {
-    var endpoint = getEndpoint();
-    try {
-        await fetch(endpoint + '?action=clear&ajax=true', {
-            method: 'GET',
-            headers: { 'X-Requested-With': 'XMLHttpRequest' }
-        });
-    } catch(err) {
-        console.warn('Не удалось очистить историю на сервере:', err);
-    }
+var clearBtn = document.getElementById('clear-btn');
+if (clearBtn) {
+    clearBtn.addEventListener('click', async function() {
+        var endpoint = getEndpoint();
+        try {
+            await fetch(endpoint + '?action=clear&ajax=true', {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+        } catch(err) {
+            console.warn('Не удалось очистить историю на сервере:', err);
+        }
 
-    document.getElementById('results-body').innerHTML = '';
-    historyOfTochki = [];
-    var rVal = document.getElementById('r-select').value;
-    narisovatGrafik(rVal);
-});
+        var tbody = document.getElementById('results-body');
+        if (tbody) tbody.innerHTML = '';
+        historyOfTochki = [];
+        var rVal = document.getElementById('r-select') ? document.getElementById('r-select').value : '';
+        narisovatGrafik(rVal);
+    });
+}
 
 // подгружаем сохраненные точки из сессионного бина при старте страницы
 if (window.INITIAL_POINTS && Array.isArray(window.INITIAL_POINTS)) {
@@ -676,5 +1037,8 @@ if (window.INITIAL_POINTS && Array.isArray(window.INITIAL_POINTS)) {
 }
 
 // запускаем валидацию формы и рисуем пустой график с дефолтным r
-validForm();
-narisovatGrafik(document.getElementById('r-select').value);
+if (canvas) {
+    validForm();
+    var rElInit = document.getElementById('r-select');
+    if (rElInit) narisovatGrafik(rElInit.value);
+}
