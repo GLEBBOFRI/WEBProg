@@ -1,6 +1,7 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
 <%@ page import="ru.ifmo.se.model.PointResult" %>
 <%
+    // забираем результат проверки из аттрибутов запроса от AreaCheckServlet
     PointResult result = (PointResult) request.getAttribute("result");
     if (result == null) {
         response.sendRedirect(request.getContextPath() + "/controller");
@@ -21,12 +22,12 @@
         <b>Результат вычислений AreaCheckServlet</b>
     </div>
 
-    <!-- Результат вычислений — факт попадания или непопадания -->
+    <%-- плашка с вердиктом: залетело или мимо --%>
     <div class="result-status <%= result.isHit() ? "hit" : "miss" %>">
         <%= result.isHit() ? "✓ Точка попала в область (Попал)" : "✗ Точка не попала в область (Мимо)" %>
     </div>
 
-    <!-- Таблица, содержащая полученные параметры -->
+    <%-- табличка со всеми входными параметрами и замерами --%>
     <table border="1" style="width: 100%; border-collapse: collapse; margin-top: 15px; text-align: left;">
         <tr>
             <th style="padding: 10px; width: 45%;">Параметр</th>
@@ -62,7 +63,7 @@
         </tr>
     </table>
 
-    <!-- Ссылка на страницу с веб-формой для формирования нового запроса -->
+    <%-- ссылка возврата на главную через контроллер по условию тз --%>
     <div style="text-align: center; margin-top: 25px;">
         <a href="${pageContext.request.contextPath}/controller" class="back-link">
             ← Вернуться к веб-форме для нового запроса

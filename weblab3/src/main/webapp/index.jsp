@@ -2,6 +2,7 @@
 <%@ page import="ru.ifmo.se.model.ResultsBean" %>
 <%@ page import="ru.ifmo.se.model.PointResult" %>
 <%@ page import="java.util.List" %>
+<%-- подтягиваем бинку из сессии студента --%>
 <jsp:useBean id="resultsBean" class="ru.ifmo.se.model.ResultsBean" scope="session"/>
 
 <!DOCTYPE html>
@@ -13,6 +14,7 @@
 </head>
 <body>
 
+<%-- контейнер для всплывашек с ошибками --%>
 <div id="toast-container"></div>
 
 <% if (request.getAttribute("errorMessage") != null) { %>
@@ -35,13 +37,15 @@
     </tr>
     <tr>
         <td id="canvas-cell" align="center">
+            <%-- канвас с интерактивной областью --%>
             <canvas id="graph" width="300" height="300"></canvas>
         </td>
         <td id="form-cell">
+            <%-- формочка шлет post строго на контроллер по тз --%>
             <form id="point-form" action="${pageContext.request.contextPath}/controller" method="POST">
                 <p><b> Да начнется морской бой </b></p>
                 
-                <!-- Координата X (Checkbox: {-4..4}) -->
+                <%-- выбор координаты x чекбоксами --%>
                 <p><b>Координата X:</b></p>
                 <div id="x-checkboxes-group" class="btn-group">
                     <% for (int xVal : new int[]{-4, -3, -2, -1, 0, 1, 2, 3, 4}) { %>
@@ -50,14 +54,14 @@
                         </label>
                     <% } %>
                 </div>
-                <!-- Скрытый инпут для отправки выбранного X на сервлет -->
+                <%-- прячем выбранный x в скрытый инпут чтоб улетал в сервлет --%>
                 <input type="hidden" id="x-input" name="x" value="">
 
-                <!-- Координата Y (Text: (-5 ... 3)) -->
+                <%-- ввод y текстом со строгим диапазоном (-5 ... 3) --%>
                 <p><b>Координата Y (-5 ... 3):</b></p>
                 <input type="text" id="y-input" name="y" placeholder="Введи число строго от -5 до 3" maxlength="10" autocomplete="off">
 
-                <!-- Радиус R (Select: {'1','2','3','4','5'}) -->
+                <%-- выбор r через селект от 1 до 5 --%>
                 <p><b>Радиус R:</b></p>
                 <select id="r-select" name="r">
                     <option value="" disabled selected>Выбери R</option>
@@ -69,6 +73,7 @@
                 </select>
 
                 <p>
+                    <%-- кнопка отправки залочена пока инпуты не станут валидными --%>
                     <input type="submit" id="submit-btn" value="Проверить" disabled>
                 </p>
             </form>
@@ -84,7 +89,7 @@
     </tr>
     <tr>
         <td colspan="2">
-            <!-- Таблица с результатами предыдущих проверок из JavaBean -->
+            <%-- рендерим историю точек прямо из бинки ResultsBean --%>
             <table border="1" id="results-table">
                 <thead>
                 <tr>
@@ -122,7 +127,7 @@
     </tbody>
 </table>
 
-<!-- Передача истории из ResultsBean в клиентский JavaScript для отображения на Canvas -->
+<%-- прокидываем сохраненные точки из сессионной бинки в js для отрисовки на канвасе --%>
 <script>
     window.CONTEXT_PATH = "${pageContext.request.contextPath}";
     window.INITIAL_POINTS = [

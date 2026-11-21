@@ -14,37 +14,38 @@ import java.io.PrintWriter;
 import java.util.HashMap;
 import java.util.Map;
 
-/**
- * ControllerServlet - главный диспетчер запросов приложения в архитектуре MVC.
- * Определяет тип запроса и делегирует обработку:
- *  - AreaCheckServlet: если запрос содержит координаты точки и радиус;
- *  - index.jsp: если запрос не содержит сведений о координатах и радиусе.
+/*
+ * главный диспетчер (контроллер): разруливает куда слать запрос в зависимости от параметров
  */
 @WebServlet(name = "ControllerServlet", urlPatterns = {"/controller"})
 public class ControllerServlet extends HttpServlet {
     private final Gson gson = new Gson();
 
+    // принимаем get-запросы (вход на страницу или ajax-запрос истории)
     @Override
     protected void doGet(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
+    // принимаем post-запросы (отправка формы или клики с канваса)
     @Override
     protected void doPost(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
         processRequest(request, response);
     }
 
+    // общая логика диспетчеризации запросов
     private void processRequest(HttpServletRequest request, HttpServletResponse response)
             throws ServletException, IOException {
+        // выставляем кодировку чтоб русские символы не превратились в кракозябры
         request.setCharacterEncoding("UTF-8");
         response.setCharacterEncoding("UTF-8");
 
         String action = request.getParameter("action");
         String clear = request.getParameter("clear");
 
-        // Обработка очистки истории
+        // если прилетел запрос на очистку истории — дропаем бинку из сессии
         if ("clear".equalsIgnoreCase(action) || "true".equalsIgnoreCase(clear)) {
             HttpSession session = request.getSession();
             ResultsBean bean = (ResultsBean) session.getAttribute("resultsBean");
@@ -54,6 +55,7 @@ public class ControllerServlet extends HttpServlet {
             boolean isAjax = "true".equalsIgnoreCase(request.getParameter("ajax")) ||
                     "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
             if (isAjax) {
+                // для аякса отдаем короткий json что все успешно потерли
                 response.setContentType("application/json; charset=UTF-8");
                 Map<String, Object> res = new HashMap<>();
                 res.put("success", true);
@@ -63,11 +65,12 @@ public class ControllerServlet extends HttpServlet {
                 }
                 return;
             }
+            // если обычный запрос — редиректим обратно на контроллер
             response.sendRedirect(request.getContextPath() + "/controller");
             return;
         }
 
-        // Запрос истории в формате JSON
+        // если клиент просит сохраненные точки — выплевываем историю в json
         if ("history".equalsIgnoreCase(action)) {
             HttpSession session = request.getSession();
             ResultsBean bean = (ResultsBean) session.getAttribute("resultsBean");
@@ -84,12 +87,12 @@ public class ControllerServlet extends HttpServlet {
         String yParam = request.getParameter("y");
         String rParam = request.getParameter("r");
 
-        // Если запрос содержит информацию о координатах точки и радиусе области
+        // чекаем: если есть x, y и r — отправляем на сервлет проверки области
         if (xParam != null && yParam != null && rParam != null &&
                 !xParam.trim().isEmpty() && !yParam.trim().isEmpty() && !rParam.trim().isEmpty()) {
             request.getRequestDispatcher("/check").forward(request, response);
         } else {
-            // Если запрос не содержит сведений о координатах и радиусе -> делегируем index.jsp
+            // если координат нет — форвардим на jsp с формочкой
             request.getRequestDispatcher("/index.jsp").forward(request, response);
         }
     }

@@ -3,23 +3,29 @@ package ru.ifmo.se.model;
 import java.io.Serializable;
 import java.util.Objects;
 
-/**
- * JavaBean, представляющий результат одной проверки точки.
+/*
+ * бинка для хранения инфы по одной точке (сериализуем, чтоб сессия не ругалась)
  */
 public class PointResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
+    // координаты и радиус точки
     private double x;
     private double y;
     private double r;
+    // попал или промазал
     private boolean hit;
+    // серверное время и время работы сервлета
     private String currentTime;
     private String executionTime;
+    // тыкнули мышкой по канвасу или заслали через форму
     private boolean fromCanvas;
 
+    // пустой конструктор по стандарту javabeans
     public PointResult() {
     }
 
+    // полный конструктор чтоб быстро собрать результат проверки
     public PointResult(double x, double y, double r, boolean hit, String currentTime, String executionTime, boolean fromCanvas) {
         this.x = x;
         this.y = y;
@@ -86,6 +92,7 @@ public class PointResult implements Serializable {
         this.fromCanvas = fromCanvas;
     }
 
+    // сравниваем точки по значениям полей
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -100,11 +107,13 @@ public class PointResult implements Serializable {
                 Objects.equals(executionTime, that.executionTime);
     }
 
+    // генерим хэш по всем полям
     @Override
     public int hashCode() {
         return Objects.hash(x, y, r, hit, currentTime, executionTime, fromCanvas);
     }
 
+    // красивый вывод в логи если нужно дебажить
     @Override
     public String toString() {
         return "PointResult{" +

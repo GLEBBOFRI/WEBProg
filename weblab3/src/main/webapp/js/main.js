@@ -13,7 +13,7 @@ var hideInvalidDotes = true;
 const codeword = 'абобус';
 const SCALE = 30; // 1 единица = 30 пикселей (при ширине 300px диапазон от -4 до 4 составляет [-120px, +120px])
 
-// Склеивает все джсон строки и прогоняет по 32-битному хэш-алгоритму DJB2
+// склеиваем json-строку и хэшируем через djb2 чтоб данные не подделали
 function protectothack(dataObj) {
     if (!dataObj || typeof dataObj !== 'object') return '';
     var str = JSON.stringify({
@@ -33,14 +33,14 @@ function protectothack(dataObj) {
     return hash.toString();
 }
 
-// Парсит в число и заменяет запятую на точку
+// приводим ввод к числу и меняем запятую на точку если юзер ошибся
 function toStrAndDZ(val) {
     if (val === null || val === undefined) return NaN;
     var str = String(val).trim().replace(',', '.');
     return str === '' ? NaN : Number(str);
 }
 
-// Создает на 3 сек тост с ошибкой
+// спавним красный тост с ошибкой на три секунды
 function pokazatOshibku(text) {
     var container = document.getElementById('toast-container');
     if (!container) return;
@@ -57,34 +57,34 @@ function pokazatOshibku(text) {
     }, 3000);
 }
 
-// Валидация R: Select {'1', '2', '3', '4', '5'}
+// чекаем радиус r: строго из селекта {1, 2, 3, 4, 5}
 function isValidR(rVal) {
     var rNum = toStrAndDZ(rVal);
     var validR = [1, 2, 3, 4, 5];
     return !isNaN(rNum) && validR.indexOf(rNum) !== -1;
 }
 
-// Валидация Y: Text (-5 ... 3), строгий интервал не включая границы
+// чекаем y: строго открытый интервал (-5 ... 3), крайние значения отсекаем
 function isValidY(yVal) {
     var yNum = toStrAndDZ(yVal);
     return !isNaN(yNum) && yNum > -5 && yNum < 3;
 }
 
-// Валидация X: Checkbox {'-4','-3','-2','-1','0','1','2','3','4'}
+// чекаем x: строго один чекбокс из {-4, -3, -2, -1, 0, 1, 2, 3, 4}
 function isValidX(xVal) {
     var xNum = toStrAndDZ(xVal);
     var validX = [-4, -3, -2, -1, 0, 1, 2, 3, 4];
     return !isNaN(xNum) && validX.indexOf(xNum) !== -1;
 }
 
-// Перевод координат (x, y) в пиксели холста
+// конвертим математические координаты (x, y) в пиксели холста
 function xyToPx(x, y) {
     var px = 150 + x * SCALE;
     var py = 150 - y * SCALE;
     return { x: px, y: py };
 }
 
-// Перевод пикселей холста в координаты (x, y)
+// конвертим пиксели холста обратно в нормальные координаты (x, y)
 function pxToXY(px, py) {
     var rawX = (px - 150) / SCALE;
     var rawY = (150 - py) / SCALE;
@@ -94,7 +94,7 @@ function pxToXY(px, py) {
     };
 }
 
-// Пасхалка с танцами таблиц
+// пасхалочка: заставляем таблицы на странице флексить и летать по синусоиде
 function startDance() {
     if (danceInterval !== null) return;
 
@@ -124,6 +124,7 @@ function startDance() {
     }, 20);
 }
 
+// глушим флекс таблиц и возвращаем все стили на место
 function stopDance() {
     if (danceInterval !== null) {
         clearInterval(danceInterval);
@@ -140,24 +141,25 @@ function stopDance() {
     }
 }
 
-// Проверка попадания на клиенте (для валидации и отображения)
+// быстрая проверка попадания на фронте для раскраски точек и отрисовки
 function proverkaPopadaniya(x, y, r) {
-    // 1 четверть: прямоугольник [0, R] x [0, R/2]
+    // 1 четверть: прямоугольник шириной r и высотой r/2
     if (x >= 0 && y >= 0) {
         return (x <= r) && (y <= (r / 2));
     }
-    // 2 четверть: треугольник (-R/2, 0), (0, 0), (0, R)
+    // 2 четверть: треугольник от (-r/2, 0) до (0, r)
     if (x <= 0 && y >= 0) {
         return (x >= -r / 2) && (y <= (2 * x + r));
     }
-    // 4 четверть: сектор круга радиуса R
+    // 4 четверть: сектор круга радиуса r
     if (x >= 0 && y <= 0) {
         return (x * x + y * y) <= (r * r);
     }
+    // 3 четверть: тут точек нет, всегда мимо
     return false;
 }
 
-// Отрисовка графика варианта 3 лабы
+// отрисовываем всю фигуру варианта 3 лабы на холсте
 function narisovatGrafik(rVal) {
     ctx.clearRect(0, 0, 300, 300);
 
@@ -170,10 +172,10 @@ function narisovatGrafik(rVal) {
         var rPx = rNum * SCALE;
         var halfRPx = (rNum / 2) * SCALE;
 
-        // 1 четверть: прямоугольник (ширина R, высота R/2)
+        // 1 четверть: заливаем прямоугольник [0, r] на [0, r/2]
         ctx.fillRect(150, 150 - halfRPx, rPx, halfRPx);
 
-        // 2 четверть: треугольник (от (-R/2, 0) до (0, R))
+        // 2 четверть: заливаем треугольник от (-r/2, 0) до (0, r)
         ctx.beginPath();
         ctx.moveTo(150, 150);
         ctx.lineTo(150 - halfRPx, 150);
@@ -181,7 +183,7 @@ function narisovatGrafik(rVal) {
         ctx.closePath();
         ctx.fill();
 
-        // 4 четверть: четверть круга радиуса R (от (R, 0) до (0, -R))
+        // 4 четверть: заливаем четверть круга радиуса r
         ctx.beginPath();
         ctx.moveTo(150, 150);
         ctx.arc(150, 150, rPx, 0, Math.PI / 2, false);
@@ -189,7 +191,7 @@ function narisovatGrafik(rVal) {
         ctx.fill();
     }
 
-    // Отрисовка невидимых стен (ограничение допустимой зоны: X: -4..4, Y: от -5 до 3 не включая) пунктирной рамкой
+    // рисуем пунктирную границу допустимой зоны клика: x [-4..4], y (-5..3)
     ctx.beginPath();
     ctx.setLineDash([4, 4]);
     ctx.strokeStyle = '#ff4444';
@@ -197,7 +199,7 @@ function narisovatGrafik(rVal) {
     ctx.strokeRect(30, 60, 240, 240);
     ctx.setLineDash([]);
 
-    // Оси координат
+    // чертим оси x и y
     ctx.beginPath();
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
@@ -205,11 +207,11 @@ function narisovatGrafik(rVal) {
     ctx.moveTo(0, 150); ctx.lineTo(300, 150);
     ctx.moveTo(150, 0); ctx.lineTo(150, 300);
 
-    // Стрелочки
+    // рисуем стрелочки на концах осей
     ctx.moveTo(290, 145); ctx.lineTo(300, 150); ctx.lineTo(290, 155);
     ctx.moveTo(145, 10);  ctx.lineTo(150, 0);   ctx.lineTo(155, 10);
 
-    // Засечки и метки на осях
+    // засечки с метками r и r/2
     var rLabel = hasValidR ? rNum : 'R';
     var rHalfLabel = hasValidR ? (rNum / 2) : 'R/2';
     var rPxVal = rNum * SCALE;
@@ -242,7 +244,7 @@ function narisovatGrafik(rVal) {
     }
     ctx.stroke();
 
-    // Подписи осей и меток
+    // подписываем оси x и y
     ctx.fillStyle = '#000000';
     ctx.font = '11px monospace';
     ctx.fillText('x', 285, 140);
@@ -261,14 +263,16 @@ function narisovatGrafik(rVal) {
         }
     }
 
+    // рисуем все точки из истории
     narisovatStaryeTochki(rVal);
 
+    // если мышь наведена на график — рисуем прицел
     if (myishX !== null && hasValidR) {
         narisovatPricel(myishX, myishY);
     }
 }
 
-// Перевод координат курсора с примагничиванием к границам допустимой зоны (X: -4..4, Y: (-5..3))
+// примагничиваем координаты к пунктирной рамке [-4..4] и (-5..3) чтоб не вылететь за границы
 function getClampedCoords(canvasX, canvasY) {
     var raw = pxToXY(canvasX, canvasY);
     var minX = -4;
@@ -285,7 +289,7 @@ function getClampedCoords(canvasX, canvasY) {
     };
 }
 
-// Прицел при наведении мыши (точка примагничивается к пунктирной границе)
+// рисуем прицел мышки с пунктирными проекциями на оси
 function narisovatPricel(cX, cY) {
     var coords = getClampedCoords(cX, cY);
     var targetPx = xyToPx(coords.x, coords.y);
@@ -312,7 +316,7 @@ function narisovatPricel(cX, cY) {
     ctx.fillText('(' + coords.x.toFixed(2) + ', ' + coords.y.toFixed(2) + ')', targetPx.x + 7, targetPx.y - 7);
 }
 
-// Отрисовка точек из истории
+// отрисовываем точки из истории проверок (зеленые - попал, красные - мимо)
 function narisovatStaryeTochki(currentRVal) {
     for (var i = 0; i < historyOfTochki.length; i++) {
         var pt = historyOfTochki[i];
@@ -339,7 +343,7 @@ function narisovatStaryeTochki(currentRVal) {
     }
 }
 
-// Расчет координат мыши с учетом масштаба Canvas
+// вычисляем точные координаты курсора с учетом реального размера канваса
 function getXY(canvas, event) {
     var rect = canvas.getBoundingClientRect();
     var scaleX = canvas.width / rect.width;
@@ -350,6 +354,7 @@ function getXY(canvas, event) {
     };
 }
 
+// трекаем движение мыши для прицела
 canvas.addEventListener('mousemove', function(e) {
     var pos = getXY(canvas, e);
     myishX = pos.x;
@@ -359,6 +364,7 @@ canvas.addEventListener('mousemove', function(e) {
     narisovatGrafik(rVal);
 });
 
+// убираем прицел когда курсор ушел с холста
 canvas.addEventListener('mouseleave', function() {
     myishX = null;
     myishY = null;
@@ -367,13 +373,13 @@ canvas.addEventListener('mouseleave', function() {
     narisovatGrafik(rVal);
 });
 
-// Клик по канвасу
+// клик по графику: если r выбран — шлем на сервер, если нет — ругаемся о невозможности определения координат
 canvas.addEventListener('click', async function(e) {
     var rSelect = document.getElementById('r-select');
     var rVal = rSelect.value;
 
     if (!isValidR(rVal)) {
-        pokazatOshibku('Сначала выберите значение радиуса R!');
+        pokazatOshibku('Невозможно определить координаты: сначала выберите радиус области R!');
         return;
     }
 
@@ -384,7 +390,7 @@ canvas.addEventListener('click', async function(e) {
     await otpravitZapros(coords.x, coords.y, rNum, true);
 });
 
-// Вставка строки в таблицу результатов
+// добавляем свежую строку в html-таблицу на клиенте
 function vstavkaVTablicu(x, y, r, hit, timeStr, execTimeStr, isInvalid, isTampered) {
     var tbody = document.getElementById('results-body');
     if (!tbody) return;
@@ -413,6 +419,7 @@ function vstavkaVTablicu(x, y, r, hit, timeStr, execTimeStr, isInvalid, isTamper
     tbody.prepend(tr);
 }
 
+// определяем url сервлета контроллера с учетом context path
 function getEndpoint() {
     if (window.CONTEXT_PATH !== undefined) {
         return window.CONTEXT_PATH + '/controller';
@@ -420,7 +427,7 @@ function getEndpoint() {
     return '/weblab3/controller';
 }
 
-// Отправка AJAX POST запроса на ControllerServlet
+// отправляем ajax post запрос на ControllerServlet
 async function otpravitZapros(x, y, r, fromCanvas) {
     var endpoint = getEndpoint();
     var params = new URLSearchParams();
@@ -484,7 +491,7 @@ async function otpravitZapros(x, y, r, fromCanvas) {
     }
 }
 
-// Очистка ввода от недопустимых символов
+// срезаем левые символы в поле y на лету
 function sanitizeInput(el) {
     if (!el) return;
     var rawVal = el.value;
@@ -506,7 +513,7 @@ function sanitizeInput(el) {
     }
 }
 
-// Проверка валидности всей формы для активации кнопки "Проверить"
+// разблокируем кнопку отправки только если все инпуты заполнены по фэншую
 function validForm() {
     var submitBtn = document.getElementById('submit-btn');
     if (!submitBtn) return;
@@ -533,7 +540,7 @@ function validForm() {
     submitBtn.disabled = !(isXValid && isYValid && isRValid);
 }
 
-// Обработка выбора чекбоксов X (Checkbox: одиночный выбор)
+// логика выбора чекбоксов x: делаем поведение как у радиокнопки (только один выбор)
 var xCheckboxes = document.querySelectorAll('.x-cb');
 var xInput = document.getElementById('x-input');
 
@@ -558,7 +565,7 @@ if (xCheckboxes.length > 0) {
     });
 }
 
-// Слушатели для Y и R
+// слушатели на ввод y и смену r
 var yInputEl = document.getElementById('y-input');
 var rSelectEl = document.getElementById('r-select');
 
@@ -574,7 +581,7 @@ if (rSelectEl) {
     });
 }
 
-// Пасхалка танца таблиц
+// слушаем поле пасхалки на ввод триггерных слов
 var topInput = document.getElementById('top-left-input');
 if (topInput) {
     topInput.addEventListener('input', function() {
@@ -587,7 +594,7 @@ if (topInput) {
     });
 }
 
-// Кнопка показа/скрытия невалидных точек
+// кнопка переключения видимости невалидных точек
 var toggleInvalidBtn = document.getElementById('toggle-invalid-btn');
 if (toggleInvalidBtn) {
     toggleInvalidBtn.textContent = hideInvalidDotes ? 'Показать невалидные' : 'Скрыть невалидные';
@@ -611,7 +618,7 @@ if (toggleInvalidBtn) {
     });
 }
 
-// Валидация перед отправкой формы (HTML submit переходит на result.jsp через ControllerServlet -> AreaCheckServlet)
+// финальный чекер перед сабмитом формы (улетает post на controller -> area-check -> result.jsp)
 document.getElementById('point-form').addEventListener('submit', function(e) {
     var xVal = document.getElementById('x-input').value;
     if (!isValidX(xVal)) {
@@ -635,7 +642,7 @@ document.getElementById('point-form').addEventListener('submit', function(e) {
     }
 });
 
-// Очистка таблицы и истории на сервере
+// очищаем таблицу и просим контроллер дропнуть историю в сессии
 document.getElementById('clear-btn').addEventListener('click', async function() {
     var endpoint = getEndpoint();
     try {
@@ -653,7 +660,7 @@ document.getElementById('clear-btn').addEventListener('click', async function() 
     narisovatGrafik(rVal);
 });
 
-// Инициализация при загрузке страницы: загружаем точки из JavaBean сессии
+// подгружаем сохраненные точки из сессионного бина при старте страницы
 if (window.INITIAL_POINTS && Array.isArray(window.INITIAL_POINTS)) {
     for (var k = 0; k < window.INITIAL_POINTS.length; k++) {
         var pt = window.INITIAL_POINTS[k];
@@ -668,5 +675,6 @@ if (window.INITIAL_POINTS && Array.isArray(window.INITIAL_POINTS)) {
     }
 }
 
+// запускаем валидацию формы и рисуем пустой график с дефолтным r
 validForm();
 narisovatGrafik(document.getElementById('r-select').value);

@@ -216,7 +216,7 @@ input[type="submit"]:disabled {
     background-color: #e68a00;
 }
 
-/* Стили для страницы результатов (result.jsp) */
+/* оформление карточки с результатами для result.jsp */
 .result-card {
     max-width: 650px;
     margin: 40px auto;
