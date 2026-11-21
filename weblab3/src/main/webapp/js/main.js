@@ -240,7 +240,7 @@ function triggerFnafEasterEgg() {
     var word = 'ПОПАДАНИЕ'.split('');
     var reels = [];
 
-    // создаем механические барабаны для каждой буквы слова ПОПАДАНИЕ
+    // генерим механические барабаны для каждой буквы слова попадание
     word.forEach(function(char) {
         var slot = document.createElement('div');
         slot.className = 'fnaf-slot';
@@ -249,40 +249,65 @@ function triggerFnafEasterEgg() {
         reel.className = 'fnaf-reel';
 
         var pool = ['0', '1', '2', '3', '4', '5', 'X', 'Y', 'R', '★', '◆', char];
-        pool.forEach(function(c) {
+        var targetCharEl = null;
+
+        pool.forEach(function(c, i) {
             var el = document.createElement('div');
             el.className = 'fnaf-char';
             el.textContent = c;
             reel.appendChild(el);
+            if (i === pool.length - 1) {
+                targetCharEl = el;
+            }
         });
 
         slot.appendChild(reel);
         slotsBox.appendChild(slot);
-        reels.push({ reel: reel, targetOffset: (pool.length - 1) * 74 });
+        reels.push({
+            reel: reel,
+            targetOffset: (pool.length - 1) * 74,
+            targetCharEl: targetCharEl
+        });
     });
 
     overlay.classList.add('active');
 
-    // поочередно крутим и защелкиваем барабаны с щелчками
+    // поочередно раскручиваем и защелкиваем барабаны с механическими щелчками
+    var animDurationMs = 850;
+    var stepDelayMs = 130;
+    var baseStartMs = 100;
+
     reels.forEach(function(item, idx) {
+        var startAt = baseStartMs + idx * stepDelayMs;
+
+        // дергаем барабан к целевой букве
         setTimeout(function() {
             item.reel.style.transform = 'translateY(-' + item.targetOffset + 'px)';
             playSlotTick();
-        }, 120 + idx * 110);
+        }, startAt);
+
+        // фиксируем букву в слоте с щелчком и сочной подсветкой
+        setTimeout(function() {
+            playSlotTick();
+            if (item.targetCharEl) {
+                item.targetCharEl.classList.add('fnaf-locked');
+            }
+        }, startAt + animDurationMs);
     });
 
-    // когда буквы встали на место — врубаем колокол и праздничные конфетти
-    var finishDelay = 120 + word.length * 110 + 200;
+    // когда все барабаны защелкнулись — врубаем куранты 6 утра и праздничные конфетти
+    var totalFinishMs = baseStartMs + (reels.length - 1) * stepDelayMs + animDurationMs + 100;
     setTimeout(function() {
         if (!overlay.classList.contains('active')) return;
         playFnafSound();
         var confCanvas = document.getElementById('fnaf-confetti');
         runConfetti(confCanvas);
-    }, finishDelay);
+    }, totalFinishMs);
 
+    // держим экран открытым, чтобы юзер кайфанул от победы, либо закрываем по клику/esc
     fnafTimeout = setTimeout(function() {
         closeFnafEasterEgg();
-    }, 4500);
+    }, totalFinishMs + 5000);
 }
 
 function closeFnafEasterEgg() {
