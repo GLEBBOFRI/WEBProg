@@ -102,6 +102,10 @@
     </div>
 </div>
 
+<%-- задаем контекст пути приложения для корректной подгрузки звуков и скриптов --%>
+<script>
+    window.CONTEXT_PATH = "${pageContext.request.contextPath}";
+</script>
 <%-- подключаем общий js со звуками и крутилками пасхалок --%>
 <script src="${pageContext.request.contextPath}/js/main.js"></script>
 <script>

@@ -32,8 +32,34 @@ function getAudioContext() {
     }
 }
 
-// синтезируем колокольный перезвон и детский восторженный крик как в fnaf 1 (6:00 am)
+// плееры для воспроизведения оригинальных mp3 звуков
+var currentFnafAudio = null;
+var currentGtaAudio = null;
+
+// воспроизводим оригинальный звук fnaf 1 (6:00 am) из mp3, а если заблокировано браузером — врубаем синтез
 function playFnafSound() {
+    var base = window.CONTEXT_PATH !== undefined ? window.CONTEXT_PATH : '/weblab3';
+    try {
+        if (currentFnafAudio) {
+            currentFnafAudio.pause();
+            currentFnafAudio.currentTime = 0;
+        }
+        currentFnafAudio = new Audio(base + '/audio/fnaf-6am.mp3');
+        currentFnafAudio.volume = 0.85;
+        var playPromise = currentFnafAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(function(err) {
+                console.warn('Аудио fnaf заблокировано политикой браузера, синтезируем:', err);
+                synthesizeFnafSound();
+            });
+        }
+    } catch(e) {
+        synthesizeFnafSound();
+    }
+}
+
+// синтезируем колокольный перезвон и детский восторженный крик как в fnaf 1 (6:00 am)
+function synthesizeFnafSound() {
     var aCtx = getAudioContext();
     if (!aCtx) return;
     var now = aCtx.currentTime;
@@ -119,8 +145,30 @@ function playSlotTick() {
     osc.stop(now + 0.04);
 }
 
-// синтезируем звук wasted из gta: глубокий саб-удар и тревожный диссонанс
+// воспроизводим оригинальный звук gta wasted из mp3, а при ошибке синтезируем через аудио контекст
 function playGtaSound() {
+    var base = window.CONTEXT_PATH !== undefined ? window.CONTEXT_PATH : '/weblab3';
+    try {
+        if (currentGtaAudio) {
+            currentGtaAudio.pause();
+            currentGtaAudio.currentTime = 0;
+        }
+        currentGtaAudio = new Audio(base + '/audio/gta-wasted.mp3');
+        currentGtaAudio.volume = 0.85;
+        var playPromise = currentGtaAudio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(function(err) {
+                console.warn('Аудио gta заблокировано политикой браузера, синтезируем:', err);
+                synthesizeGtaSound();
+            });
+        }
+    } catch(e) {
+        synthesizeGtaSound();
+    }
+}
+
+// синтезируем звук wasted из gta: глубокий саб-удар и тревожный диссонанс
+function synthesizeGtaSound() {
     var aCtx = getAudioContext();
     if (!aCtx) return;
     var now = aCtx.currentTime;
@@ -312,6 +360,10 @@ function triggerFnafEasterEgg() {
 
 function closeFnafEasterEgg() {
     if (fnafTimeout) clearTimeout(fnafTimeout);
+    if (currentFnafAudio) {
+        currentFnafAudio.pause();
+        currentFnafAudio.currentTime = 0;
+    }
     var overlay = document.getElementById('fnaf-overlay');
     if (overlay) {
         overlay.classList.remove('active');
@@ -353,6 +405,10 @@ function triggerGtaEasterEgg() {
 
 function closeGtaEasterEgg() {
     if (gtaTimeout) clearTimeout(gtaTimeout);
+    if (currentGtaAudio) {
+        currentGtaAudio.pause();
+        currentGtaAudio.currentTime = 0;
+    }
     var overlay = document.getElementById('gta-overlay');
     if (overlay) {
         overlay.classList.remove('active');
