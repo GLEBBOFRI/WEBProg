@@ -23,6 +23,14 @@
     </div>
 <% } %>
 
+<%-- фирменный логотип gta 6 и бейдж локации вайс-сити --%>
+<div class="gta6-header-banner">
+    <div class="gta6-logo-container">
+        <img src="${pageContext.request.contextPath}/images/gta6-logo.svg" alt="Grand Theft Auto VI" class="gta6-logo-img">
+    </div>
+    <div class="gta6-subtitle-badge">LEONIDA STATE • VICE CITY DISTRICT</div>
+</div>
+
 <table border="1" id="main-layout">
     <tbody>
     <tr>
@@ -43,7 +51,7 @@
         <td id="form-cell">
             <%-- формочка шлет post строго на контроллер по тз --%>
             <form id="point-form" action="${pageContext.request.contextPath}/controller" method="POST">
-                <p><b> Да начнется морской бой </b></p>
+                <p><b style="color: #00f0ff; letter-spacing: 1px;">МИССИЯ: ОПРЕДЕЛИТЬ КООРДИНАТЫ ЦЕЛИ // VICE CITY</b></p>
                 
                 <%-- выбор координаты x чекбоксами --%>
                 <p><b>Координата X:</b></p>
@@ -74,7 +82,7 @@
 
                 <p>
                     <%-- кнопка отправки залочена пока инпуты не станут валидными --%>
-                    <input type="submit" id="submit-btn" value="Проверить" disabled>
+                    <input type="submit" id="submit-btn" value="Проверить точку // Execute" disabled>
                 </p>
             </form>
         </td>
@@ -82,7 +90,7 @@
     <tr>
         <td colspan="2" id="clr" align="center">
             <div class="button-group">
-                <button type="button" id="clear-btn" class="action-btn">Очистить историю</button>
+                <button type="button" id="clear-btn" class="action-btn">Очистить улики</button>
                 <button type="button" id="toggle-invalid-btn" class="action-btn">Показать невалидные</button>
             </div>
         </td>

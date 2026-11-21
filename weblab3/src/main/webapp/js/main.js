@@ -522,15 +522,20 @@ function narisovatGrafik(rVal) {
     var rNum = hasValidR ? toStrAndDZ(rVal) : 2;
 
     if (hasValidR) {
-        ctx.fillStyle = '#3399ff';
+        // неоновый градиент вайс-сити для закраски фигуры
+        var grad = ctx.createLinearGradient(0, 0, 300, 300);
+        grad.addColorStop(0, 'rgba(255, 42, 133, 0.7)');
+        grad.addColorStop(0.5, 'rgba(168, 17, 199, 0.65)');
+        grad.addColorStop(1, 'rgba(0, 240, 255, 0.7)');
+        ctx.fillStyle = grad;
 
         var rPx = rNum * SCALE;
         var halfRPx = (rNum / 2) * SCALE;
 
-        // 1 четверть: заливаем прямоугольник [0, r] на [0, r/2]
+        // 1 четверть: прямоугольник [0, r] на [0, r/2]
         ctx.fillRect(150, 150 - halfRPx, rPx, halfRPx);
 
-        // 2 четверть: заливаем треугольник от (-r/2, 0) до (0, r)
+        // 2 четверть: треугольник от (-r/2, 0) до (0, r)
         ctx.beginPath();
         ctx.moveTo(150, 150);
         ctx.lineTo(150 - halfRPx, 150);
@@ -538,7 +543,7 @@ function narisovatGrafik(rVal) {
         ctx.closePath();
         ctx.fill();
 
-        // 4 четверть: заливаем четверть круга радиуса r
+        // 4 четверть: сектор круга радиуса r
         ctx.beginPath();
         ctx.moveTo(150, 150);
         ctx.arc(150, 150, rPx, 0, Math.PI / 2, false);
@@ -549,20 +554,20 @@ function narisovatGrafik(rVal) {
     // рисуем пунктирную границу допустимой зоны клика: x [-4..4], y (-5..3)
     ctx.beginPath();
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#ff4444';
+    ctx.strokeStyle = '#ff2a85';
     ctx.lineWidth = 1.5;
     ctx.strokeRect(30, 60, 240, 240);
     ctx.setLineDash([]);
 
-    // чертим оси x и y
+    // чертим оси x и y неоновым цветом
     ctx.beginPath();
-    ctx.strokeStyle = '#000000';
+    ctx.strokeStyle = '#00f0ff';
     ctx.lineWidth = 2;
 
     ctx.moveTo(0, 150); ctx.lineTo(300, 150);
     ctx.moveTo(150, 0); ctx.lineTo(150, 300);
 
-    // рисуем стрелочки на концах осей
+    // стрелочки осей
     ctx.moveTo(290, 145); ctx.lineTo(300, 150); ctx.lineTo(290, 155);
     ctx.moveTo(145, 10);  ctx.lineTo(150, 0);   ctx.lineTo(155, 10);
 
@@ -599,9 +604,9 @@ function narisovatGrafik(rVal) {
     }
     ctx.stroke();
 
-    // подписываем оси x и y
-    ctx.fillStyle = '#000000';
-    ctx.font = '11px monospace';
+    // подписываем оси x и y ярким белым цветом
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
     ctx.fillText('x', 285, 140);
     ctx.fillText('y', 160, 15);
 
@@ -644,7 +649,7 @@ function getClampedCoords(canvasX, canvasY) {
     };
 }
 
-// рисуем прицел мышки с пунктирными проекциями на оси
+// рисуем прицел мышки с пунктирными проекциями на оси в неоновом стиле
 function narisovatPricel(cX, cY) {
     if (!ctx) return;
     var coords = getClampedCoords(cX, cY);
@@ -652,7 +657,7 @@ function narisovatPricel(cX, cY) {
 
     ctx.beginPath();
     ctx.setLineDash([4, 4]);
-    ctx.strokeStyle = '#ff0000';
+    ctx.strokeStyle = '#00f0ff';
     ctx.lineWidth = 1;
 
     ctx.moveTo(targetPx.x, 150);
@@ -663,16 +668,19 @@ function narisovatPricel(cX, cY) {
     ctx.setLineDash([]);
 
     ctx.beginPath();
-    ctx.fillStyle = '#ff0000';
-    ctx.arc(targetPx.x, targetPx.y, 4, 0, 2 * Math.PI);
+    ctx.fillStyle = '#ff2a85';
+    ctx.arc(targetPx.x, targetPx.y, 4.5, 0, 2 * Math.PI);
     ctx.fill();
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
 
-    ctx.fillStyle = '#000000';
-    ctx.font = '11px monospace';
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 11px monospace';
     ctx.fillText('(' + coords.x.toFixed(2) + ', ' + coords.y.toFixed(2) + ')', targetPx.x + 7, targetPx.y - 7);
 }
 
-// отрисовываем точки из истории проверок (зеленые - попал, красные - мимо)
+// отрисовываем точки из истории проверок (зеленые - попал, розовые - мимо)
 function narisovatStaryeTochki(currentRVal) {
     if (!ctx) return;
     for (var i = 0; i < historyOfTochki.length; i++) {
@@ -685,16 +693,16 @@ function narisovatStaryeTochki(currentRVal) {
 
         ctx.beginPath();
         if (pt.isTampered || pt.isInvalid) {
-            ctx.fillStyle = '#ff8c00';
+            ctx.fillStyle = '#ffaa00';
         } else if (pt.hit) {
-            ctx.fillStyle = '#00cc00';
+            ctx.fillStyle = '#00ff88';
         } else {
-            ctx.fillStyle = '#ff0000';
+            ctx.fillStyle = '#ff2a85';
         }
 
-        ctx.arc(pos.x, pos.y, 4, 0, 2 * Math.PI);
+        ctx.arc(pos.x, pos.y, 4.5, 0, 2 * Math.PI);
         ctx.fill();
-        ctx.strokeStyle = '#000000';
+        ctx.strokeStyle = '#ffffff';
         ctx.lineWidth = 1;
         ctx.stroke();
     }

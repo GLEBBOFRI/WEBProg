@@ -17,14 +17,22 @@
 </head>
 <body>
 
+<%-- фирменный логотип gta 6 и плашка миссии вверху страницы результатов --%>
+<div class="gta6-header-banner">
+    <div class="gta6-logo-container">
+        <img src="${pageContext.request.contextPath}/images/gta6-logo.svg" alt="Grand Theft Auto VI" class="gta6-logo-img">
+    </div>
+    <div class="gta6-subtitle-badge">LEONIDA POLICE DEPARTMENT // MISSION REPORT</div>
+</div>
+
 <div class="result-card">
     <div id="header" style="margin-bottom: 20px;">
-        <b>Результат вычислений AreaCheckServlet</b>
+        <b>ОТЧЁТ МИССИИ // AREA CHECK DOSSIER</b>
     </div>
 
-    <%-- плашка с вердиктом: залетело или мимо --%>
+    <%-- плашка с вердиктом: залетело или мимо в стиле gta --%>
     <div class="result-status <%= result.isHit() ? "hit" : "miss" %>">
-        <%= result.isHit() ? "✓ Точка попала в область (Попал)" : "✗ Точка не попала в область (Мимо)" %>
+        <%= result.isHit() ? "✓ МИССИЯ ВЫПОЛНЕНА // ПОПАДАНИЕ" : "✗ МИССИЯ ПРОВАЛЕНА // ПРОМАХ" %>
     </div>
 
     <%-- табличка со всеми входными параметрами и замерами --%>
@@ -46,27 +54,27 @@
             <td style="padding: 10px;"><b><%= String.format(java.util.Locale.US, "%.1f", result.getR()) %></b></td>
         </tr>
         <tr>
-            <td style="padding: 10px;">Факт попадания</td>
-            <td style="padding: 10px;"><b><%= result.isHit() ? "Попадание" : "Непопадание" %></b></td>
+            <td style="padding: 10px;">Вердикт попадания</td>
+            <td style="padding: 10px;"><b><%= result.isHit() ? "Попадание (Успех)" : "Мимо (Провал)" %></b></td>
         </tr>
         <tr>
-            <td style="padding: 10px;">Время запроса</td>
+            <td style="padding: 10px;">Время фиксации</td>
             <td style="padding: 10px;"><%= result.getCurrentTime() %></td>
         </tr>
         <tr>
-            <td style="padding: 10px;">Время вычислений</td>
+            <td style="padding: 10px;">Время обработки сервером</td>
             <td style="padding: 10px;"><%= result.getExecutionTime() %></td>
         </tr>
         <tr>
-            <td style="padding: 10px;">Источник запроса</td>
-            <td style="padding: 10px;"><%= result.isFromCanvas() ? "Клик по интерактивному графику" : "Веб-форма" %></td>
+            <td style="padding: 10px;">Источник данных</td>
+            <td style="padding: 10px;"><%= result.isFromCanvas() ? "Интерактивный радар" : "Ручной ввод координат" %></td>
         </tr>
     </table>
 
     <%-- ссылка возврата на главную через контроллер по условию тз --%>
     <div style="text-align: center; margin-top: 25px;">
         <a href="${pageContext.request.contextPath}/controller" class="back-link">
-            ← Вернуться к веб-форме для нового запроса
+            ← Вернуться в Vice City к выбору цели
         </a>
     </div>
 </div>
