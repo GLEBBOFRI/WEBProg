@@ -826,26 +826,23 @@ async function otpravitZapros(x, y, r, fromCanvas) {
             return;
         }
 
-        historyOfTochki.push({
-            x: data.x,
-            y: data.y,
-            r: data.r,
-            hit: data.hit,
-            isInvalid: false,
-            isTampered: false
-        });
-
-        vstavkaVTablicu(data.x, data.y, data.r, data.hit, data.currentTime, data.executionTime, false, false);
-        narisovatGrafik(r.toString());
-
-        // врубаем пасхалку только для ручного ввода, по графику ничего не триггерим
-        if (!fromCanvas) {
-            if (data.hit) {
-                triggerFnafEasterEgg();
-            } else {
-                triggerGtaEasterEgg();
-            }
+        // обрабатываем все точки, полученные от сервера (включая мультивыбор x)
+        var points = data.points || [data];
+        for (var p = 0; p < points.length; p++) {
+            var pt = points[p];
+            historyOfTochki.unshift({
+                x: pt.x,
+                y: pt.y,
+                r: pt.r,
+                hit: pt.hit,
+                isInvalid: false,
+                isTampered: false
+            });
+            vstavkaVTablicu(pt.x, pt.y, pt.r, pt.hit, pt.currentTime, pt.executionTime, false, false);
         }
+
+        narisovatGrafik(r.toString());
+        // экран попадания / промаха полностью отключен по требованию преподавателя
 
     } catch(err) {
         console.warn('Сервер недоступен, расчет локально:', err);
@@ -853,7 +850,7 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         var clientExecTime = (performance.now() - startTimeClient).toFixed(3) + ' мс';
         var nowStr = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) + ' (Европа/Москва)';
 
-        historyOfTochki.push({
+        historyOfTochki.unshift({
             x: x,
             y: y,
             r: r,
@@ -864,15 +861,6 @@ async function otpravitZapros(x, y, r, fromCanvas) {
 
         vstavkaVTablicu(x, y, r, hit, nowStr, clientExecTime, false, false);
         narisovatGrafik(r.toString());
-
-        // пасхалка чисто при ручном вводе, клик по графику ничего не триггерит
-        if (!fromCanvas) {
-            if (hit) {
-                triggerFnafEasterEgg();
-            } else {
-                triggerGtaEasterEgg();
-            }
-        }
     }
 }
 
@@ -898,52 +886,34 @@ function sanitizeInput(el) {
     }
 }
 
-// разблокируем кнопку отправки только если все инпуты заполнены по фэншую
+// разблокируем кнопку отправки только если выбран хотя бы один чекбокс x и валидны y и r
 function validForm() {
     var submitBtn = document.getElementById('submit-btn');
     if (!submitBtn) return;
 
-    var xInput = document.getElementById('x-input');
     var yInput = document.getElementById('y-input');
     var rSelect = document.getElementById('r-select');
 
     if (yInput) sanitizeInput(yInput);
 
-    var xVal = xInput ? xInput.value.trim() : '';
     var yVal = yInput ? yInput.value.trim() : '';
     var rVal = rSelect ? rSelect.value.trim() : '';
 
-    if (xVal === '' || yVal === '' || rVal === '') {
-        submitBtn.disabled = true;
-        return;
-    }
-
-    var isXValid = isValidX(xVal);
+    var checkedX = document.querySelectorAll('.x-cb:checked');
+    var isXValid = checkedX.length > 0;
     var isYValid = isValidY(yVal);
     var isRValid = isValidR(rVal);
 
     submitBtn.disabled = !(isXValid && isYValid && isRValid);
 }
 
-// логика выбора чекбоксов x: делаем поведение как у радиокнопки (только один выбор)
+// мультивыбор чекбоксов координаты x (можно тыкать несколько сразу)
 var xCheckboxes = document.querySelectorAll('.x-cb');
-var xInput = document.getElementById('x-input');
-
 if (xCheckboxes.length > 0) {
     xCheckboxes.forEach(function(cb) {
         cb.addEventListener('change', function() {
-            if (this.checked) {
-                xCheckboxes.forEach(function(other) {
-                    if (other !== cb) {
-                        other.checked = false;
-                        if (other.parentElement) other.parentElement.classList.remove('active');
-                    }
-                });
-                if (this.parentElement) this.parentElement.classList.add('active');
-                xInput.value = this.value;
-            } else {
-                if (this.parentElement) this.parentElement.classList.remove('active');
-                xInput.value = '';
+            if (this.parentElement) {
+                this.parentElement.classList.toggle('active', this.checked);
             }
             validForm();
         });
@@ -1009,14 +979,14 @@ if (toggleInvalidBtn) {
     });
 }
 
-// финальный чекер перед сабмитом формы (улетает post на controller -> area-check -> result.jsp)
+// финальный чекер перед сабмитом формы (улетает post на controller -> area-check -> index.jsp)
 var pointForm = document.getElementById('point-form');
 if (pointForm) {
     pointForm.addEventListener('submit', function(e) {
-        var xVal = document.getElementById('x-input') ? document.getElementById('x-input').value : '';
-        if (!isValidX(xVal)) {
+        var checkedX = document.querySelectorAll('.x-cb:checked');
+        if (checkedX.length === 0) {
             e.preventDefault();
-            pokazatOshibku('Выберите значение координаты X!');
+            pokazatOshibku('Выберите хотя бы одно значение координаты X!');
             return;
         }
 
@@ -1032,6 +1002,93 @@ if (pointForm) {
             e.preventDefault();
             pokazatOshibku('Выберите значение R из предложенного списка!');
             return;
+        }
+    });
+}
+
+// серверная статистика запросов: дергаем контроллер и выводим модалку
+var statsBtn = document.getElementById('stats-btn');
+var statsModal = document.getElementById('stats-modal');
+var statsCloseBtn = document.getElementById('stats-close-btn');
+
+function closeStatsModal() {
+    if (statsModal) statsModal.style.display = 'none';
+}
+
+if (statsBtn && statsModal) {
+    statsBtn.addEventListener('click', async function() {
+        var endpoint = getEndpoint();
+        var contentEl = document.getElementById('stats-content');
+        if (contentEl) {
+            contentEl.innerHTML = '<div style="text-align: center; color: #00f0ff; padding: 20px;">Подгружаем статистику из ServletContext...</div>';
+        }
+        statsModal.style.display = 'flex';
+
+        try {
+            var response = await fetch(endpoint + '?action=stats', {
+                method: 'GET',
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) throw new Error('HTTP ' + response.status);
+            var stats = await response.json();
+
+            if (contentEl) {
+                contentEl.innerHTML = '<div class="stats-grid">' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">Всего запросов</div>' +
+                        '<div class="stats-val">' + stats.totalRequests + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">GET запросов</div>' +
+                        '<div class="stats-val">' + stats.getRequests + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">POST запросов</div>' +
+                        '<div class="stats-val accent">' + stats.postRequests + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">Проверок точек</div>' +
+                        '<div class="stats-val">' + stats.pointChecks + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">Попаданий в область</div>' +
+                        '<div class="stats-val green">' + stats.hits + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item">' +
+                        '<div class="stats-label">Промахов</div>' +
+                        '<div class="stats-val accent">' + stats.misses + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item stats-item-full">' +
+                        '<div class="stats-label">Время работы сервера (Uptime)</div>' +
+                        '<div class="stats-val" style="font-size: 18px;">' + stats.uptime + '</div>' +
+                    '</div>' +
+                    '<div class="stats-item stats-item-full">' +
+                        '<div class="stats-label">Время последнего запроса</div>' +
+                        '<div class="stats-val" style="font-size: 14px; color: #e0d4f5;">' + stats.lastRequestTime + '</div>' +
+                    '</div>' +
+                '</div>';
+            }
+        } catch(err) {
+            console.error('Ошибка получения статистики:', err);
+            if (contentEl) {
+                contentEl.innerHTML = '<div style="color: #ff4466; text-align: center; padding: 20px;">Не удалось подсосать статистику с сервера.</div>';
+            }
+        }
+    });
+
+    if (statsCloseBtn) {
+        statsCloseBtn.addEventListener('click', closeStatsModal);
+    }
+
+    statsModal.addEventListener('click', function(e) {
+        if (e.target === statsModal) {
+            closeStatsModal();
+        }
+    });
+
+    window.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            closeStatsModal();
         }
     });
 }

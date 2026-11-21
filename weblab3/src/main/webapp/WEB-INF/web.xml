@@ -11,25 +11,51 @@
         <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
 
+    <!-- фильтр статистики запросов и кодировки utf-8 для всех путей -->
+    <filter>
+        <filter-name>RequestStatsFilter</filter-name>
+        <filter-class>ru.ifmo.se.filters.RequestStatsFilter</filter-class>
+    </filter>
+    <filter-mapping>
+        <filter-name>RequestStatsFilter</filter-name>
+        <url-pattern>/*</url-pattern>
+    </filter-mapping>
+
+    <!-- mvc контроллер-диспетчер -->
     <servlet>
         <servlet-name>ControllerServlet</servlet-name>
         <servlet-class>ru.ifmo.se.servlets.ControllerServlet</servlet-class>
     </servlet>
-
     <servlet-mapping>
         <servlet-name>ControllerServlet</servlet-name>
         <url-pattern>/controller</url-pattern>
     </servlet-mapping>
 
+    <!-- сервлет геометрической проверки точек -->
     <servlet>
         <servlet-name>AreaCheckServlet</servlet-name>
         <servlet-class>ru.ifmo.se.servlets.AreaCheckServlet</servlet-class>
     </servlet>
-
     <servlet-mapping>
         <servlet-name>AreaCheckServlet</servlet-name>
         <url-pattern>/check</url-pattern>
     </servlet-mapping>
+
+    <!-- обработка ошибок пользователя и сервера: 404, 500 и общие исключения -->
+    <error-page>
+        <error-code>404</error-code>
+        <location>/error.jsp</location>
+    </error-page>
+
+    <error-page>
+        <error-code>500</error-code>
+        <location>/error.jsp</location>
+    </error-page>
+
+    <error-page>
+        <exception-type>java.lang.Throwable</exception-type>
+        <location>/error.jsp</location>
+    </error-page>
 
     <session-config>
         <session-timeout>60</session-timeout>

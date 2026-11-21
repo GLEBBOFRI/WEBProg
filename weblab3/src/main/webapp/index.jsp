@@ -1,15 +1,13 @@
 <%@ page contentType="text/html;charset=UTF-8" language="java" %>
-<%@ page import="ru.ifmo.se.model.ResultsBean" %>
-<%@ page import="ru.ifmo.se.model.PointResult" %>
-<%@ page import="java.util.List" %>
-<%-- подтягиваем бинку из сессии студента --%>
+<%@ taglib prefix="c" uri="jakarta.tags.core" %>
+<%-- подключаем бин истории из сессии --%>
 <jsp:useBean id="resultsBean" class="ru.ifmo.se.model.ResultsBean" scope="session"/>
 
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Лабораторная работа №3 | Проверка попадания точки</title>
+    <title>Лабораторная работа №3 | GTA 6 Vice City</title>
     <link rel="stylesheet" href="${pageContext.request.contextPath}/css/styles.css">
 </head>
 <body>
@@ -17,11 +15,12 @@
 <%-- контейнер для всплывашек с ошибками --%>
 <div id="toast-container"></div>
 
-<% if (request.getAttribute("errorMessage") != null) { %>
-    <div style="background-color: #fee2e2; border: 1px solid #ef4444; color: #991b1b; padding: 12px; margin-bottom: 12px; text-align: center; font-family: monospace;">
-        <strong>Ошибка:</strong> <%= request.getAttribute("errorMessage") %>
+<%-- блок серверной ошибки через el и jstl без скриптлетов --%>
+<c:if test="${not empty errorMessage}">
+    <div style="background: rgba(180, 20, 40, 0.85); border: 1px solid #ff4466; color: #ffffff; padding: 14px; margin-bottom: 16px; text-align: center; font-family: monospace; border-radius: 8px; box-shadow: 0 0 15px rgba(255, 68, 102, 0.5);">
+        <strong>ОШИБКА:</strong> <c:out value="${errorMessage}"/>
     </div>
-<% } %>
+</c:if>
 
 <%-- фирменный логотип gta 6 и бейдж локации вайс-сити --%>
 <div class="gta6-header-banner">
@@ -53,17 +52,15 @@
             <form id="point-form" action="${pageContext.request.contextPath}/controller" method="POST">
                 <p><b style="color: #00f0ff; letter-spacing: 1px;">МИССИЯ: ОПРЕДЕЛИТЬ КООРДИНАТЫ ЦЕЛИ // VICE CITY</b></p>
                 
-                <%-- выбор координаты x чекбоксами --%>
-                <p><b>Координата X:</b></p>
+                <%-- выбор координаты x чекбоксами (мультивыбор) без java-скриптлетов через jstl c:forEach --%>
+                <p><b>Координата X (выбери один или несколько):</b></p>
                 <div id="x-checkboxes-group" class="btn-group">
-                    <% for (int xVal : new int[]{-4, -3, -2, -1, 0, 1, 2, 3, 4}) { %>
+                    <c:forEach var="xVal" items="-4,-3,-2,-1,0,1,2,3,4">
                         <label class="x-cb-label">
-                            <input type="checkbox" class="x-cb" name="x_cb" value="<%= xVal %>"> <%= xVal %>
+                            <input type="checkbox" class="x-cb" name="x" value="${xVal}"> ${xVal}
                         </label>
-                    <% } %>
+                    </c:forEach>
                 </div>
-                <%-- прячем выбранный x в скрытый инпут чтоб улетал в сервлет --%>
-                <input type="hidden" id="x-input" name="x" value="">
 
                 <%-- ввод y текстом со строгим диапазоном (-5 ... 3) --%>
                 <p><b>Координата Y (-5 ... 3):</b></p>
@@ -92,12 +89,13 @@
             <div class="button-group">
                 <button type="button" id="clear-btn" class="action-btn">Очистить улики</button>
                 <button type="button" id="toggle-invalid-btn" class="action-btn">Показать невалидные</button>
+                <button type="button" id="stats-btn" class="action-btn">Статистика сервера</button>
             </div>
         </td>
     </tr>
     <tr>
         <td colspan="2">
-            <%-- рендерим историю точек прямо из бинки ResultsBean --%>
+            <%-- вывод таблицы с результатами строго через JSTL c:forEach и EL без скриптлетов --%>
             <table border="1" id="results-table">
                 <thead>
                 <tr>
@@ -110,24 +108,25 @@
                 </tr>
                 </thead>
                 <tbody id="results-body">
-                <%
-                    List<PointResult> historyList = resultsBean.getResults();
-                    if (historyList != null && !historyList.isEmpty()) {
-                        for (int i = historyList.size() - 1; i >= 0; i--) {
-                            PointResult item = historyList.get(i);
-                %>
+                <c:forEach var="res" items="${resultsBean.results}">
                     <tr>
-                        <td><%= String.format(java.util.Locale.US, "%.3f", item.getX()) %></td>
-                        <td><%= String.format(java.util.Locale.US, "%.3f", item.getY()) %></td>
-                        <td><%= String.format(java.util.Locale.US, "%.1f", item.getR()) %></td>
-                        <td><%= item.isHit() ? "Попал" : "Мимо" %></td>
-                        <td><%= item.getCurrentTime() %></td>
-                        <td><%= item.getExecutionTime() %></td>
+                        <td><c:out value="${res.x}"/></td>
+                        <td><c:out value="${res.y}"/></td>
+                        <td><c:out value="${res.r}"/></td>
+                        <td>
+                            <c:choose>
+                                <c:when test="${res.hit}">
+                                    <span style="color: #55ff99; font-weight: bold; text-shadow: 0 0 8px rgba(85,255,153,0.7);">Попал</span>
+                                </c:when>
+                                <c:otherwise>
+                                    <span style="color: #ff4466; font-weight: bold; text-shadow: 0 0 8px rgba(255,68,102,0.7);">Мимо</span>
+                                </c:otherwise>
+                            </c:choose>
+                        </td>
+                        <td><c:out value="${res.currentTime}"/></td>
+                        <td><c:out value="${res.executionTime}"/></td>
                     </tr>
-                <%
-                        }
-                    }
-                %>
+                </c:forEach>
                 </tbody>
             </table>
         </td>
@@ -135,27 +134,33 @@
     </tbody>
 </table>
 
-<%-- прокидываем сохраненные точки из сессионной бинки в js для отрисовки на канвасе --%>
+<%-- модалка серверной статистики запросов из ServletContext --%>
+<div id="stats-modal" class="stats-modal-overlay" style="display: none;">
+    <div class="stats-modal-card">
+        <div class="stats-modal-header">
+            <span class="stats-modal-title">LEONIDA SERVER INTEL // REQUEST STATS</span>
+            <button type="button" id="stats-close-btn" class="stats-close-btn">&times;</button>
+        </div>
+        <div class="stats-modal-body" id="stats-content">
+            <div class="stats-loading">Загрузка данных...</div>
+        </div>
+    </div>
+</div>
+
+<%-- прокидываем сохраненные точки из бина в js через jstl без скриптлетов --%>
 <script>
     window.CONTEXT_PATH = "${pageContext.request.contextPath}";
     window.INITIAL_POINTS = [
-    <%
-        if (historyList != null) {
-            for (int i = 0; i < historyList.size(); i++) {
-                PointResult p = historyList.get(i);
-    %>
-        {
-            x: <%= p.getX() %>,
-            y: <%= p.getY() %>,
-            r: <%= p.getR() %>,
-            hit: <%= p.isHit() %>,
-            time: "<%= p.getCurrentTime() %>",
-            execTime: "<%= p.getExecutionTime() %>"
-        }<%= (i < historyList.size() - 1) ? "," : "" %>
-    <%
-            }
-        }
-    %>
+        <c:forEach var="pt" items="${resultsBean.results}" varStatus="loop">
+            {
+                x: ${pt.x},
+                y: ${pt.y},
+                r: ${pt.r},
+                hit: ${pt.hit},
+                time: "${pt.currentTime}",
+                execTime: "${pt.executionTime}"
+            }${not loop.last ? ',' : ''}
+        </c:forEach>
     ];
 </script>
 <script src="${pageContext.request.contextPath}/js/main.js"></script>

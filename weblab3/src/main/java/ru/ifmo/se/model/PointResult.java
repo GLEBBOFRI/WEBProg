@@ -1,129 +1,34 @@
 package ru.ifmo.se.model;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.io.Serializable;
-import java.util.Objects;
 
 /*
- * бинка для хранения инфы по одной точке (сериализуем, чтоб сессия не ругалась)
+ * моделька точки на lombok: аннотация @Data генерит все геттеры, сеттеры, equals, hashcode и tostring без кучи портянок
  */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 public class PointResult implements Serializable {
     private static final long serialVersionUID = 1L;
 
-    // координаты и радиус точки
+    // координаты x, y и радиус r
     private double x;
     private double y;
     private double r;
-    // попал или промазал
+
+    // попала ли точка в заданную геометрическую область
     private boolean hit;
-    // серверное время и время работы сервлета
+
+    // серверное время и затраченное время вычислений
     private String currentTime;
     private String executionTime;
-    // тыкнули мышкой по канвасу или заслали через форму
+
+    // флаг: отправлено ли с графика canvas (true) или ручным вводом формы (false)
     private boolean fromCanvas;
-
-    // пустой конструктор по стандарту javabeans
-    public PointResult() {
-    }
-
-    // полный конструктор чтоб быстро собрать результат проверки
-    public PointResult(double x, double y, double r, boolean hit, String currentTime, String executionTime, boolean fromCanvas) {
-        this.x = x;
-        this.y = y;
-        this.r = r;
-        this.hit = hit;
-        this.currentTime = currentTime;
-        this.executionTime = executionTime;
-        this.fromCanvas = fromCanvas;
-    }
-
-    public double getX() {
-        return x;
-    }
-
-    public void setX(double x) {
-        this.x = x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public void setY(double y) {
-        this.y = y;
-    }
-
-    public double getR() {
-        return r;
-    }
-
-    public void setR(double r) {
-        this.r = r;
-    }
-
-    public boolean isHit() {
-        return hit;
-    }
-
-    public void setHit(boolean hit) {
-        this.hit = hit;
-    }
-
-    public String getCurrentTime() {
-        return currentTime;
-    }
-
-    public void setCurrentTime(String currentTime) {
-        this.currentTime = currentTime;
-    }
-
-    public String getExecutionTime() {
-        return executionTime;
-    }
-
-    public void setExecutionTime(String executionTime) {
-        this.executionTime = executionTime;
-    }
-
-    public boolean isFromCanvas() {
-        return fromCanvas;
-    }
-
-    public void setFromCanvas(boolean fromCanvas) {
-        this.fromCanvas = fromCanvas;
-    }
-
-    // сравниваем точки по значениям полей
-    @Override
-    public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
-        PointResult that = (PointResult) o;
-        return Double.compare(that.x, x) == 0 &&
-                Double.compare(that.y, y) == 0 &&
-                Double.compare(that.r, r) == 0 &&
-                hit == that.hit &&
-                fromCanvas == that.fromCanvas &&
-                Objects.equals(currentTime, that.currentTime) &&
-                Objects.equals(executionTime, that.executionTime);
-    }
-
-    // генерим хэш по всем полям
-    @Override
-    public int hashCode() {
-        return Objects.hash(x, y, r, hit, currentTime, executionTime, fromCanvas);
-    }
-
-    // красивый вывод в логи если нужно дебажить
-    @Override
-    public String toString() {
-        return "PointResult{" +
-                "x=" + x +
-                ", y=" + y +
-                ", r=" + r +
-                ", hit=" + hit +
-                ", currentTime='" + currentTime + '\'' +
-                ", executionTime='" + executionTime + '\'' +
-                ", fromCanvas=" + fromCanvas +
-                '}';
-    }
 }
