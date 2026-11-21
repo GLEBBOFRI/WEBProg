@@ -264,10 +264,13 @@ function stopConfetti() {
     }
 }
 
-// триггер пасхалки fnaf 1 (попадание): крутящиеся буквы, часы 6 am и конфетти
+// триггер пасхалки fnaf 1 (попадание): крутилки букв, звук на 11 сек и конфетти строго с 6 секунды
 var fnafTimeout = null;
+var fnafConfettiTimeout = null;
 function triggerFnafEasterEgg() {
     if (fnafTimeout) clearTimeout(fnafTimeout);
+    if (fnafConfettiTimeout) clearTimeout(fnafConfettiTimeout);
+    stopConfetti();
 
     var overlay = document.getElementById('fnaf-overlay');
     if (!overlay) {
@@ -320,6 +323,15 @@ function triggerFnafEasterEgg() {
 
     overlay.classList.add('active');
 
+    // сразу врубаем оригинальный звук fnaf 1 (длительность ~11 секунд)
+    playFnafSound();
+
+    if (currentFnafAudio) {
+        currentFnafAudio.onended = function() {
+            closeFnafEasterEgg();
+        };
+    }
+
     // поочередно раскручиваем и защелкиваем барабаны с механическими щелчками
     var animDurationMs = 850;
     var stepDelayMs = 130;
@@ -343,23 +355,23 @@ function triggerFnafEasterEgg() {
         }, startAt + animDurationMs);
     });
 
-    // когда все барабаны защелкнулись — врубаем куранты 6 утра и праздничные конфетти
-    var totalFinishMs = baseStartMs + (reels.length - 1) * stepDelayMs + animDurationMs + 100;
-    setTimeout(function() {
+    // конфетти врубаем строго с 6 секунды, когда в треке раздается детский крик победы и бьют часы
+    fnafConfettiTimeout = setTimeout(function() {
         if (!overlay.classList.contains('active')) return;
-        playFnafSound();
         var confCanvas = document.getElementById('fnaf-confetti');
         runConfetti(confCanvas);
-    }, totalFinishMs);
+    }, 6000);
 
-    // держим экран открытым, чтобы юзер кайфанул от победы, либо закрываем по клику/esc
+    // страховочный таймаут на закрытие после полного окончания трека (11.2 сек)
     fnafTimeout = setTimeout(function() {
         closeFnafEasterEgg();
-    }, totalFinishMs + 5000);
+    }, 11200);
 }
 
+// глушим оверлей победы fnaf, тормозим аудио курантов и сбрасываем конфетти
 function closeFnafEasterEgg() {
     if (fnafTimeout) clearTimeout(fnafTimeout);
+    if (fnafConfettiTimeout) clearTimeout(fnafConfettiTimeout);
     if (currentFnafAudio) {
         currentFnafAudio.pause();
         currentFnafAudio.currentTime = 0;
@@ -371,7 +383,7 @@ function closeFnafEasterEgg() {
     stopConfetti();
 }
 
-// триггер пасхалки gta wasted (промах): затемнение, тряска и саб-бас
+// триггер пасхалки gta wasted (промах): плавное раздувание надписи на 2.5 и звук до конца аудиофайла
 var gtaTimeout = null;
 function triggerGtaEasterEgg() {
     if (gtaTimeout) clearTimeout(gtaTimeout);
@@ -395,14 +407,27 @@ function triggerGtaEasterEgg() {
         banner.classList.add('gta-shake');
     }
 
+    // сбрасываем класс active чтобы анимация зума до 2.5 всегда стартовала с начала
+    overlay.classList.remove('active');
+    void overlay.offsetWidth;
     overlay.classList.add('active');
+
+    // врубаем оригинальный звук wasted из gta v (~7.76 сек)
     playGtaSound();
 
+    if (currentGtaAudio) {
+        currentGtaAudio.onended = function() {
+            closeGtaEasterEgg();
+        };
+    }
+
+    // держим оверлей и раздувание надписи до самого конца аудиофайла (~7.8 сек)
     gtaTimeout = setTimeout(function() {
         closeGtaEasterEgg();
-    }, 3400);
+    }, 7800);
 }
 
+// закрываем оверлей wasted и глушим трек если юзер кликнул или трек доиграл
 function closeGtaEasterEgg() {
     if (gtaTimeout) clearTimeout(gtaTimeout);
     if (currentGtaAudio) {

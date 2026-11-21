@@ -640,45 +640,51 @@ input[type="submit"]:disabled {
 /* черная полоса на весь экран как в gta v */
 .gta-banner {
     width: 100%;
-    padding: 24px 0;
-    background: rgba(0, 0, 0, 0.82);
+    padding: 60px 0;
+    background: rgba(0, 0, 0, 0.86);
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 0 30px rgba(0,0,0,0.9);
+    box-shadow: 0 0 50px rgba(0,0,0,0.95);
     transform: scaleY(0);
     transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.3, 1);
+    overflow: visible;
 }
 
 #gta-overlay.active .gta-banner {
     transform: scaleY(1);
 }
 
-/* фирменный шрифт надписи промах / wasted */
+/* фирменный шрифт надписи промах / wasted с плавным раздуванием до 2.5 на всю длину аудио */
 .gta-title {
     font-family: 'Impact', 'Arial Black', sans-serif;
-    font-size: 82px;
+    font-size: 64px;
     font-weight: 900;
-    color: #b71c1c;
-    letter-spacing: 12px;
+    color: #c62828;
+    letter-spacing: 14px;
     text-transform: uppercase;
-    text-shadow: 0 0 25px rgba(183, 28, 28, 0.85), 3px 3px 6px #000;
-    transform: scale(0.9);
-    transition: transform 3.5s ease-out;
+    text-shadow: 0 0 35px rgba(198, 40, 40, 0.95), 3px 3px 6px #000;
+    transform: scale(1);
+    transform-origin: center center;
+    will-change: transform;
+    transition: transform 0.2s ease-out;
 }
 
 #gta-overlay.active .gta-title {
-    transform: scale(1.15);
+    transform: scale(2.5);
+    transition: transform 7.7s cubic-bezier(0.12, 0, 0.18, 1);
 }
 
+/* поясняющий сабтайтл мимо кассы */
 .gta-subtitle {
     font-family: monospace;
     font-size: 15px;
-    color: #d1d5db;
-    letter-spacing: 5px;
+    color: #e5e7eb;
+    letter-spacing: 6px;
     text-transform: uppercase;
-    margin-top: 10px;
+    margin-top: 60px;
+    text-shadow: 0 0 8px rgba(0, 0, 0, 0.8);
 }
 
 /* тряска экрана при промахе */
