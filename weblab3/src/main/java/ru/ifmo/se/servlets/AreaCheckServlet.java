@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import ru.ifmo.se.config.AppConfig;
+import ru.ifmo.se.dto.AreaCheckResponseDto;
 import ru.ifmo.se.filters.RequestStatsFilter;
 import ru.ifmo.se.model.PointResult;
 import ru.ifmo.se.model.RequestStats;
@@ -19,15 +20,13 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 
 /*
  * сервлет проверки области: валидирует координаты по конфигу, считает попадание для всех выбранных x и пушит в сессию
  */
-@WebServlet(name = "AreaCheckServlet", urlPatterns = {"/check"})
+@WebServlet(name = "AreaCheckServlet", urlPatterns = {"/check", "/check/*"})
 public class AreaCheckServlet extends HttpServlet {
     private static final DateTimeFormatter TIME_FORMATTER =
             DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss").withZone(ZoneId.of("Europe/Moscow"));
@@ -52,20 +51,20 @@ public class AreaCheckServlet extends HttpServlet {
         // засекаем наносекунды для замера времени выполнения работы сервлета
         long startTime = System.nanoTime();
 
-        // чекаем если сервлет дернули напрямую мимо контроллера — отфутболиваем на контроллер
+        // чекаем если сервлет дернули напрямую мимо контроллера — отфутболиваем на контроллер по тз
         String forwardUri = (String) request.getAttribute("jakarta.servlet.forward.request_uri");
         if (forwardUri == null) {
             forwardUri = (String) request.getAttribute("javax.servlet.forward.request_uri");
         }
 
-        String[] xValues = request.getParameterValues("x");
-        String yStr = request.getParameter("y");
-        String rStr = request.getParameter("r");
-
-        if (forwardUri == null && (xValues == null || yStr == null || rStr == null)) {
+        if (forwardUri == null) {
             response.sendRedirect(request.getContextPath() + "/controller");
             return;
         }
+
+        String[] xValues = request.getParameterValues("x");
+        String yStr = request.getParameter("y");
+        String rStr = request.getParameter("r");
 
         boolean isAjax = "true".equalsIgnoreCase(request.getParameter("ajax")) ||
                 "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
@@ -189,27 +188,17 @@ public class AreaCheckServlet extends HttpServlet {
             addedPoints.add(pointResult);
         }
 
-        // 7. отдаем ответ клиенту: если аякс — шлем json, если форма с 1 x — отдельная result.jsp с пасхалкой, если мультивыбор x — сразу на index.jsp
+        // 7. отдаем ответ клиенту: строгий типизированный dto вместо сырых Map<String, Object>
         if (isAjax) {
-            // для аякса отдаем полный список созданных точек в json
+            // для аякса отдаем строго типизированный dto со списком точек
             response.setContentType("application/json; charset=UTF-8");
-            Map<String, Object> jsonMap = new HashMap<>();
-            jsonMap.put("valid", true);
-            jsonMap.put("points", addedPoints);
-            // дублируем первую точку для обратной совместимости старых хэндлеров
-            if (!addedPoints.isEmpty()) {
-                PointResult first = addedPoints.get(0);
-                jsonMap.put("x", first.getX());
-                jsonMap.put("y", first.getY());
-                jsonMap.put("r", first.getR());
-                jsonMap.put("hit", first.isHit());
-                jsonMap.put("currentTime", first.getCurrentTime());
-                jsonMap.put("executionTime", first.getExecutionTime());
-                jsonMap.put("fromCanvas", first.isFromCanvas());
-            }
+            AreaCheckResponseDto responseDto = AreaCheckResponseDto.builder()
+                    .valid(true)
+                    .points(addedPoints)
+                    .build();
 
             try (PrintWriter out = response.getWriter()) {
-                out.write(gson.toJson(jsonMap));
+                out.write(gson.toJson(responseDto));
             }
         } else {
             if (parsedXList.size() == 1 && !fromCanvas) {
@@ -243,17 +232,18 @@ public class AreaCheckServlet extends HttpServlet {
         return false;
     }
 
-    // хэндлер ошибок с возвратом на index.jsp
+    // хэндлер ошибок с возвратом на index.jsp или json dto при аяксе
     private void handleError(HttpServletRequest request, HttpServletResponse response, String message, boolean isAjax)
             throws ServletException, IOException {
         if (isAjax) {
             response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
             response.setContentType("application/json; charset=UTF-8");
-            Map<String, Object> err = new HashMap<>();
-            err.put("valid", false);
-            err.put("error", message);
+            AreaCheckResponseDto errDto = AreaCheckResponseDto.builder()
+                    .valid(false)
+                    .error(message)
+                    .build();
             try (PrintWriter out = response.getWriter()) {
-                out.write(gson.toJson(err));
+                out.write(gson.toJson(errDto));
             }
         } else {
             request.setAttribute("errorMessage", message);

@@ -3,6 +3,11 @@
 <%-- подключаем бин истории из сессии --%>
 <jsp:useBean id="resultsBean" class="ru.ifmo.se.model.ResultsBean" scope="session"/>
 
+<%-- проверяем что юзер не открыл index.jsp напрямую в обход контроллера mvc --%>
+<c:if test="${empty requestScope['jakarta.servlet.forward.request_uri'] and empty requestScope['javax.servlet.forward.request_uri']}">
+    <c:redirect url="/controller"/>
+</c:if>
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>

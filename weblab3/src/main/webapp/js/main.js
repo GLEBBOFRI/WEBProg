@@ -908,7 +908,7 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         }
 
         // обрабатываем все точки, полученные от сервера (включая мультивыбор x)
-        var points = data.points || [data];
+        var points = data.points || [];
         for (var p = 0; p < points.length; p++) {
             var pt = points[p];
             historyOfTochki.unshift({
@@ -926,22 +926,8 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         // для кликов по интерактивному графику пасхалка не врубается по условию варианта
 
     } catch(err) {
-        console.warn('Сервер недоступен, расчет локально:', err);
-        var hit = proverkaPopadaniya(x, y, r);
-        var clientExecTime = (performance.now() - startTimeClient).toFixed(3) + ' мс';
-        var nowStr = new Date().toLocaleString('ru-RU', { timeZone: 'Europe/Moscow' }) + ' (Европа/Москва)';
-
-        historyOfTochki.unshift({
-            x: x,
-            y: y,
-            r: r,
-            hit: hit,
-            isInvalid: false,
-            isTampered: false
-        });
-
-        vstavkaVTablicu(x, y, r, hit, nowStr, clientExecTime, false, false);
-        narisovatGrafik(r.toString());
+        console.error('Ошибка обращения к сервлету проверки:', err);
+        pokazatOshibku('Не удалось получить ответ от сервера проверки точек!');
     }
 }
 

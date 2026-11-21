@@ -7,6 +7,9 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import ru.ifmo.se.dto.ClearResponseDto;
+import ru.ifmo.se.dto.HistoryResponseDto;
+import ru.ifmo.se.dto.StatsResponseDto;
 import ru.ifmo.se.filters.RequestStatsFilter;
 import ru.ifmo.se.model.RequestStats;
 import ru.ifmo.se.model.ResultsBean;
@@ -14,13 +17,11 @@ import ru.ifmo.se.model.ResultsBean;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 
 /*
  * контроллер-диспетчер (mvc): распределяет запросы между проверкой точки, выдачей статы и отображением страницы
  */
-@WebServlet(name = "ControllerServlet", urlPatterns = {"/controller"})
+@WebServlet(name = "ControllerServlet", urlPatterns = {"/controller", "/controller/*"})
 public class ControllerServlet extends HttpServlet {
     private final Gson gson = new Gson();
 
@@ -54,11 +55,12 @@ public class ControllerServlet extends HttpServlet {
                     "XMLHttpRequest".equals(request.getHeader("X-Requested-With"));
             if (isAjax) {
                 response.setContentType("application/json; charset=UTF-8");
-                Map<String, Object> res = new HashMap<>();
-                res.put("success", true);
-                res.put("cleared", true);
+                ClearResponseDto clearDto = ClearResponseDto.builder()
+                        .success(true)
+                        .cleared(true)
+                        .build();
                 try (PrintWriter out = response.getWriter()) {
-                    out.write(gson.toJson(res));
+                    out.write(gson.toJson(clearDto));
                 }
                 return;
             }
@@ -73,18 +75,19 @@ public class ControllerServlet extends HttpServlet {
                 stats = new RequestStats();
             }
             response.setContentType("application/json; charset=UTF-8");
-            Map<String, Object> statsMap = new HashMap<>();
-            statsMap.put("totalRequests", stats.getTotalRequests().get());
-            statsMap.put("getRequests", stats.getGetRequests().get());
-            statsMap.put("postRequests", stats.getPostRequests().get());
-            statsMap.put("pointChecks", stats.getPointChecks().get());
-            statsMap.put("hits", stats.getHits().get());
-            statsMap.put("misses", stats.getMisses().get());
-            statsMap.put("uptime", stats.getUptime());
-            statsMap.put("lastRequestTime", stats.getLastRequestTime());
+            StatsResponseDto statsDto = StatsResponseDto.builder()
+                    .totalRequests(stats.getTotalRequests().get())
+                    .getRequests(stats.getGetRequests().get())
+                    .postRequests(stats.getPostRequests().get())
+                    .pointChecks(stats.getPointChecks().get())
+                    .hits(stats.getHits().get())
+                    .misses(stats.getMisses().get())
+                    .uptime(stats.getUptime())
+                    .lastRequestTime(stats.getLastRequestTime())
+                    .build();
 
             try (PrintWriter out = response.getWriter()) {
-                out.write(gson.toJson(statsMap));
+                out.write(gson.toJson(statsDto));
             }
             return;
         }
@@ -94,10 +97,11 @@ public class ControllerServlet extends HttpServlet {
             HttpSession session = request.getSession();
             ResultsBean bean = (ResultsBean) session.getAttribute("resultsBean");
             response.setContentType("application/json; charset=UTF-8");
-            Map<String, Object> res = new HashMap<>();
-            res.put("points", bean != null ? bean.getResults() : Collections.emptyList());
+            HistoryResponseDto historyDto = HistoryResponseDto.builder()
+                    .points(bean != null ? bean.getResults() : Collections.emptyList())
+                    .build();
             try (PrintWriter out = response.getWriter()) {
-                out.write(gson.toJson(res));
+                out.write(gson.toJson(historyDto));
             }
             return;
         }
