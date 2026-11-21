@@ -74,15 +74,17 @@
 <%-- подключаем скрипты и запускаем эпичную пасхалку на странице результатов --%>
 <script src="${pageContext.request.contextPath}/js/main.js"></script>
 <script>
-    // автоматически триггерим fnaf или gta wasted в зависимости от результата
+    // врубаем пасхалку только для ручного ввода формы (если кликнули по графику — тишина)
     window.addEventListener('DOMContentLoaded', function() {
-        setTimeout(function() {
-            <% if (result.isHit()) { %>
-                triggerFnafEasterEgg();
-            <% } else { %>
-                triggerGtaEasterEgg();
-            <% } %>
-        }, 150);
+        <% if (!result.isFromCanvas()) { %>
+            setTimeout(function() {
+                <% if (result.isHit()) { %>
+                    triggerFnafEasterEgg();
+                <% } else { %>
+                    triggerGtaEasterEgg();
+                <% } %>
+            }, 150);
+        <% } %>
     });
 </script>
 

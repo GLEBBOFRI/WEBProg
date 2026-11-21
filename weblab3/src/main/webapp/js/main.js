@@ -830,11 +830,13 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         vstavkaVTablicu(data.x, data.y, data.r, data.hit, data.currentTime, data.executionTime, false, false);
         narisovatGrafik(r.toString());
 
-        // врубаем эпичные пасхалки: попадание -> fnaf 1 (6:00 am), промах -> gta wasted
-        if (data.hit) {
-            triggerFnafEasterEgg();
-        } else {
-            triggerGtaEasterEgg();
+        // врубаем пасхалку только для ручного ввода, по графику ничего не триггерим
+        if (!fromCanvas) {
+            if (data.hit) {
+                triggerFnafEasterEgg();
+            } else {
+                triggerGtaEasterEgg();
+            }
         }
 
     } catch(err) {
@@ -855,11 +857,13 @@ async function otpravitZapros(x, y, r, fromCanvas) {
         vstavkaVTablicu(x, y, r, hit, nowStr, clientExecTime, false, false);
         narisovatGrafik(r.toString());
 
-        // пасхалка срабатывает даже при локальном фоллбэке
-        if (hit) {
-            triggerFnafEasterEgg();
-        } else {
-            triggerGtaEasterEgg();
+        // пасхалка чисто при ручном вводе, клик по графику ничего не триггерит
+        if (!fromCanvas) {
+            if (hit) {
+                triggerFnafEasterEgg();
+            } else {
+                triggerGtaEasterEgg();
+            }
         }
     }
 }
