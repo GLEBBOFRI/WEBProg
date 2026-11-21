@@ -189,7 +189,7 @@ public class AreaCheckServlet extends HttpServlet {
             addedPoints.add(pointResult);
         }
 
-        // 7. переписанная седьмая часть: никакой отдельной страницы результатов, все остается на index.jsp
+        // 7. отдаем ответ клиенту: если аякс — шлем json, если форма с 1 x — отдельная result.jsp с пасхалкой, если мультивыбор x — сразу на index.jsp
         if (isAjax) {
             // для аякса отдаем полный список созданных точек в json
             response.setContentType("application/json; charset=UTF-8");
@@ -212,8 +212,14 @@ public class AreaCheckServlet extends HttpServlet {
                 out.write(gson.toJson(jsonMap));
             }
         } else {
-            // для обычной веб-формы форвардим сразу обратно на index.jsp (таблица рисуется через c:forEach)
-            request.getRequestDispatcher("/index.jsp").forward(request, response);
+            if (parsedXList.size() == 1 && !fromCanvas) {
+                // если выбран ровно 1 x при ручном вводе — отдаем отдельную страницу результатов с пасхалкой по тз
+                request.setAttribute("result", addedPoints.get(0));
+                request.getRequestDispatcher("/result.jsp").forward(request, response);
+            } else {
+                // если выбрано несколько x (мультивыбор) или клик с канваса — форвардим на index.jsp без пасхалки
+                request.getRequestDispatcher("/index.jsp").forward(request, response);
+            }
         }
     }
 
